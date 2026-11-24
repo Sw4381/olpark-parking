@@ -1,0 +1,27 @@
+name: collect-parking
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: collect
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/collect.py
+      - name: commit
+        run: |
+          git config user.name "olpark-bot"
+          git config user.email "olpark-bot@users.noreply.github.com"
+          git add data/parking_log.csv
+          git diff --cached --quiet || git commit -m "data: parking snapshot"
+          git pull --rebase
+          git push
