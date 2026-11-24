@@ -1,19 +1,156 @@
 <!DOCTYPE html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>올림픽공원 주차 예보 (준비 중)</title>
-<style>body{font-family:system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 16px;color:#1a2b4a}
-.n{font-size:56px;font-weight:700}small{color:#667}svg{width:100%;height:160px;background:#f4f7fb;border-radius:8px}</style></head>
-<body><h1>올림픽공원 주차 예보</h1><p><small>서비스 준비 중 · 실시간 수집 확인용 임시 화면</small></p>
-<div class="n" id="n">-</div><small id="t"></small><svg id="c" viewBox="0 0 600 160" preserveAspectRatio="none"></svg>
-<p><small>출처: 한국체육산업개발(주) 실시간 주차현황 오픈API (공공데이터포털)</small></p>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>올팍 주차예보</title>
+<meta name="description" content="올림픽공원 공연일 주차장이 언제 차는지, 몇 시까지 도착해야 하는지 알려 드립니다.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./">올팍 주차예보</a>
+    <nav><a href="ops.html">운영자 화면</a></nav>
+  </header>
+
+  <main>
+    <div class="sign" aria-live="polite">
+      <div class="sign-head">
+        <span class="p-mark" aria-hidden="true">P</span>
+        <div class="lamps" id="lamps" aria-hidden="true">
+          <span class="lamp" data-l="0">여유</span><span class="lamp" data-l="1">다소 혼잡</span><span class="lamp" data-l="2">혼잡</span><span class="lamp" data-l="3">만차</span>
+        </div>
+      </div>
+      <h1 class="verdict" id="verdict">주차 현황을 불러오는 중입니다</h1>
+      <p id="today"></p>
+      <p class="stamp" id="stamp"></p>
+    </div>
+
+    <section>
+      <h2>오늘 하루</h2>
+      <p class="sub" id="bandSub">06시부터 24시까지, 한 칸이 30분입니다.</p>
+      <div class="band" id="band"></div>
+      <div class="hours" aria-hidden="true"><span>06시</span><span>09시</span><span>12시</span><span>15시</span><span>18시</span><span>21시</span></div>
+      <ul class="legend">
+        <li><b style="background:var(--free)"></b>여유</li>
+        <li><b style="background:var(--lane)"></b>다소 혼잡 50%~</li>
+        <li><b style="background:var(--busy)"></b>혼잡 70%~</li>
+        <li><b style="background:var(--full)"></b>만차 90%~</li>
+        <li id="legendFc" hidden><b style="background:var(--ink-soft);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.6) 0 3px,transparent 3px 6px)"></b>빗금은 예상</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>공연 보러 오시나요</h2>
+      <p class="sub">공연을 고르면 몇 시까지 도착해야 하는지 알려 드립니다.</p>
+      <ul class="shows" id="shows"><li class="detail" style="padding-top:14px">공연 일정을 불러오는 중입니다.</li></ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>한국체육산업개발(주)가 공공데이터포털에 개방한 실시간 주차현황, 올림픽공원 대관정보를 사용합니다.</p>
+    <p>주차 대수는 공원 전체 합계이며 구역별 값은 제공되지 않습니다. 이용률은 수용 2,200대 기준입니다.</p>
+    <p id="acc"></p>
+  </footer>
+</div>
+
+<script src="assets/common.js"></script>
 <script>
-fetch('data/parking_log.csv?'+Date.now()).then(r=>r.text()).then(t=>{
- const rows=t.trim().split('\n').slice(1).map(l=>l.split(',')).filter(r=>r.length==2);
- if(!rows.length)return; const last=rows[rows.length-1];
- document.getElementById('n').textContent=Number(last[1]).toLocaleString()+'대';
- document.getElementById('t').textContent='현재 주차 대수 · '+last[0]+' 기준';
- const v=rows.slice(-432).map(r=>+r[1]),mx=Math.max(...v),mn=Math.min(...v),s=mx-mn||1;
- const p=v.map((y,i)=>(i/(v.length-1||1)*600).toFixed(1)+','+(150-(y-mn)/s*140).toFixed(1)).join(' ');
- document.getElementById('c').innerHTML='<polyline fill="none" stroke="#12408c" stroke-width="2" points="'+p+'"/>';
-});
-</script></body></html>
+(async () => {
+  const $ = id => document.getElementById(id);
+  const now = OP.kstParts();
+  const [log, eventsFile, forecast] = await Promise.all([OP.loadLog(), OP.getJSON('data/events.json'), OP.getJSON('data/forecast.json')]);
+  const events = (eventsFile && eventsFile.events) || [];
+  const days = (forecast && forecast.days) || {};
+  const onDate = d => events.filter(e => e.begin <= d && d <= e.end);
+
+  // 전광판
+  const live = await OP.loadLive(log);
+  const todayShows = onDate(now.date);
+  const fcToday = days[now.date];
+  if (live) {
+    const pct = OP.pctOf(live.v), lv = OP.level(pct);
+    document.querySelector(`.lamp[data-l="${lv}"]`).classList.add('on');
+    const adv = fcToday && fcToday.advice;
+    if (adv && adv.full_from && now.hm < adv.full_from && lv < 3) {
+      $('verdict').textContent = `오늘은 ${OP.hmText(adv.full_from)}쯤 만차가 예상됩니다`;
+    } else {
+      $('verdict').textContent = lv === 3 ? '지금 주차장이 거의 다 찼습니다' : `지금 주차장은 ${pct}% 찼습니다`;
+    }
+    $('stamp').textContent = `${live.v.toLocaleString()}대 주차 중, 수용 ${OP.CAPACITY.toLocaleString()}대. ${live.live ? '방금' : live.at} 확인한 값입니다.`;
+  } else {
+    $('verdict').textContent = '주차 현황을 불러오지 못했습니다';
+    $('stamp').textContent = '잠시 뒤 새로 고쳐 주세요.';
+  }
+  $('today').textContent = todayShows.length
+    ? `오늘 공연: ${todayShows.map(e => `${e.venue} ${e.title}`).join(', ')}`
+    : (events.length ? '오늘은 등록된 공연이 없습니다.' : '');
+
+  // 오늘 하루 띠
+  const actual = OP.daySlots(log, now.date);
+  const showMins = todayShows.flatMap(e => OP.showTimes(e.time_text));
+  OP.renderBand($('band'), { actual, forecast: OP.forecastSlots(fcToday), nowMin: now.min, showMins: todayShows.length === 1 ? showMins : [] });
+  if (fcToday) $('legendFc').hidden = false;
+  if (!actual.some(v => v != null) && !fcToday) $('bandSub').textContent += ' 오늘 기록이 아직 없습니다.';
+
+  // 공연 목록
+  const adviceHTML = (e, date) => {
+    const day = days[date], adv = day && day.advice;
+    if (!adv) {
+      return `<div class="advice pending"><strong>${OP.shortDate(date)} 예보는 아직 없습니다</strong>
+        <p>2025년 입출차 기록으로 예측 모델을 검증하는 중입니다. 검증이 끝나면 이 자리에 도착 권장 시각이 표시됩니다.</p></div>`;
+    }
+    if (adv.full_from) {
+      return `<div class="advice"><strong>차로 오신다면 ${OP.hmText(adv.arrive_by)} 전에 들어오세요</strong>
+        <p>${OP.hmText(adv.full_from)}부터 만차가 예상됩니다${adv.full_to ? `(${OP.hmText(adv.full_to)}까지)` : ''}. 그 뒤에 출발하신다면 지하철 5·9호선 올림픽공원역, 8호선 몽촌토성역을 권합니다.</p></div>
+        <div class="band" style="margin-top:12px" data-band="${date}"></div>`;
+    }
+    return `<div class="advice"><strong>공연 시간에도 자리가 남을 것으로 보입니다</strong>
+      <p>가장 붐빌 때 이용률은 ${adv.peak_pct}%로 예상됩니다.</p></div><div class="band" style="margin-top:12px" data-band="${date}"></div>`;
+  };
+  const eventDates = e => {
+    const out = []; let d = e.begin < now.date ? now.date : e.begin;
+    while (d <= e.end && out.length < 5) { out.push(d); d = OP.addDays(d, 1); }
+    return out;
+  };
+  const range = e => e.begin === e.end ? OP.shortDate(e.begin) : `${OP.shortDate(e.begin)} ~ ${OP.shortDate(e.end)}`;
+  const list = $('shows');
+  if (!events.length) {
+    list.innerHTML = '<li class="detail" style="padding-top:14px">공연 일정을 불러오지 못했습니다. 잠시 뒤 새로 고쳐 주세요.</li>';
+  } else {
+    list.innerHTML = events.map((e, i) => `<li>
+      <button type="button" aria-expanded="false" aria-controls="d${i}" data-i="${i}">
+        <span class="when">${range(e)}</span>
+        <span class="title">${OP.esc(e.title)}</span>
+        <span class="where">${OP.esc(e.venue)}</span>
+      </button>
+      <div class="detail" id="d${i}" hidden></div></li>`).join('');
+    const fill = (i, date) => {
+      const e = events[i], box = $('d' + i), dates = eventDates(e);
+      box.innerHTML = (dates.length > 1 ? `<div class="chips">${dates.map(d =>
+          `<button type="button" aria-pressed="${d === date}" data-i="${i}" data-d="${d}">${OP.shortDate(d)}</button>`).join('')}</div>` : '')
+        + adviceHTML(e, date)
+        + `<p class="more">${OP.esc(e.time_text || '')}</p><p class="more"><a href="${e.url}" rel="noopener">올림픽공원 누리집에서 공연 정보 보기</a></p>`;
+      const b = box.querySelector('[data-band]');
+      if (b) OP.renderBand(b, { forecast: OP.forecastSlots(days[date]), showMins: OP.showTimes(e.time_text) });
+    };
+    list.addEventListener('click', ev => {
+      const chip = ev.target.closest('.chips button');
+      if (chip) return fill(+chip.dataset.i, chip.dataset.d);
+      const btn = ev.target.closest('li > button'); if (!btn) return;
+      const i = +btn.dataset.i, box = $('d' + i), open = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!open)); box.hidden = open;
+      if (!open) fill(i, eventDates(events[i])[0]);
+    });
+  }
+
+  const a = forecast && forecast.accuracy;
+  if (a && a.text) $('acc').textContent = a.text;
+})();
+</script>
+</body>
+</html>

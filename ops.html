@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>올팍 주차예보 운영자 화면</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap wide">
+  <header class="top">
+    <a class="brand" href="./">올팍 주차예보</a>
+    <nav><a href="./">방문객 화면</a></nav>
+  </header>
+
+  <main>
+    <h1 class="verdict" id="headline" style="color:var(--ink)">운영 현황을 불러오는 중입니다</h1>
+    <p class="sub" id="stamp"></p>
+
+    <div class="grid" id="cells"></div>
+
+    <section>
+      <h2>오늘 주차 대수</h2>
+      <p class="sub">굵은 선이 실측, 점선이 예측입니다. 빨간 선은 수용 2,200대입니다.</p>
+      <div class="panel"><svg class="chart" id="chart" viewBox="0 0 900 300" role="img" aria-label="오늘 주차 대수 추이"></svg></div>
+    </section>
+
+    <section>
+      <h2>오늘과 내일 공연</h2>
+      <div class="panel scroll"><table id="shows"></table></div>
+    </section>
+
+    <section>
+      <h2>누리집 예상 이용률과 실측</h2>
+      <p class="sub">올림픽공원 누리집 "주차장 예상 이용률 서비스"가 게시한 값과, 같은 시각 실시간 주차현황 API의 실측을 나란히 둡니다.</p>
+      <div class="panel scroll"><table id="official"></table></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>유입 속도와 만차 도달 시각은 최근 30분 변화를 그대로 이은 단순 계산입니다. 예측 모델 기준의 이상 유입 경보는 모델 검증이 끝나면 이 화면에 추가됩니다.</p>
+    <p>실측은 10분 주기 수집 기록이며, GitHub Actions 사정으로 간격이 벌어질 수 있습니다.</p>
+  </footer>
+</div>
+
+<script src="assets/common.js"></script>
+<script>
+(async () => {
+  const $ = id => document.getElementById(id);
+  const now = OP.kstParts();
+  const [log, eventsFile, forecast, official] = await Promise.all([
+    OP.loadLog(), OP.getJSON('data/events.json'), OP.getJSON('data/forecast.json'), OP.getCSV('data/official_forecast_log.csv')]);
+  const live = await OP.loadLive(log);
+  const series = log.slice();
+  if (live && live.live) series.push({ at: `${now.date} ${now.hm}:00`, t: new Date(), v: live.v });
+
+  // 최근 변화량: n분 전에 가장 가까운 기록과의 차이
+  const cur = series[series.length - 1];
+  const ago = min => {
+    if (!cur) return null;
+    const target = cur.t - min * 60000;
+    let best = null;
+    for (const r of series) if (Math.abs(r.t - target) <= 8 * 60000 && (!best || Math.abs(r.t - target) < Math.abs(best.t - target))) best = r;
+    return best ? cur.v - best.v : null;
+  };
+  const signed = n => n == null ? '기록 부족' : (n > 0 ? '+' : '') + n.toLocaleString() + '대';
+  const d30 = ago(30), d60 = ago(60);
+  const cells = [];
+  if (cur) {
+    const pct = OP.pctOf(cur.v), lv = OP.level(pct), left = OP.CAPACITY - cur.v;
+    cells.push({ k: '현재 주차 대수', v: `${cur.v.toLocaleString()}대 <small>${pct}%, ${OP.LEVELS[lv]}</small>`, c: lv === 3 ? 'alert' : lv === 2 ? 'warn' : '' });
+    cells.push({ k: '남은 자리', v: `${Math.max(left, 0).toLocaleString()}대` });
+    cells.push({ k: '최근 30분 변화', v: signed(d30) });
+    cells.push({ k: '최근 60분 변화', v: signed(d60) });
+    let eta = '기록 부족', c = '';
+    if (left <= 0) { eta = '수용 대수 도달'; c = 'alert'; }
+    else if (d30 != null) {
+      if (d30 <= 0) eta = '유입 없음';
+      else { const m = Math.round(left / (d30 / 30)); eta = m > 600 ? '10시간 이상' : `약 ${m}분 뒤`; c = m <= 30 ? 'alert' : m <= 60 ? 'warn' : ''; }
+    }
+    cells.push({ k: '지금 속도로 수용 대수 도달', v: eta, c });
+    const fday = forecast && forecast.days && forecast.days[now.date];
+    if (fday && fday.slots) {
+      const s = fday.slots.filter(x => x.t <= now.hm).pop();
+      if (s) { const diff = pct - s.pct; cells.push({ k: '예측 대비', v: `${diff > 0 ? '+' : ''}${diff}%p <small>예측 ${s.pct}%</small>`, c: diff >= 15 ? 'alert' : diff >= 8 ? 'warn' : '' }); }
+    }
+    $('headline').textContent = lv === 3 ? '주차장이 수용 한계에 가깝습니다' : (c === 'alert' ? '30분 안에 만차에 이를 속도입니다' : `현재 ${OP.LEVELS[lv]} 단계입니다`);
+    $('stamp').textContent = `${now.date} ${now.hm} 기준. ${live && live.live ? '실시간 API 값입니다.' : '수집 기록의 마지막 값입니다.'}`;
+  } else {
+    $('headline').textContent = '주차 현황을 불러오지 못했습니다';
+  }
+  $('cells').innerHTML = cells.map(x => `<div class="cell ${x.c || ''}"><div class="k">${x.k}</div><div class="v">${x.v}</div></div>`).join('');
+
+  // 오늘 추이
+  const W = 900, H = 300, L = 46, R = 12, T = 12, B = 28, x0 = 360, x1 = 1440;
+  const today = series.filter(r => r.at.slice(0, 10) === now.date).map(r => ({ m: OP.hmToMin(r.at.slice(11, 16)), v: r.v }));
+  const fday = forecast && forecast.days && forecast.days[now.date];
+  const fc = ((fday && fday.slots) || []).map(s => ({ m: OP.hmToMin(s.t), v: Math.round(s.pct * OP.CAPACITY / 100) }));
+  const ymax = Math.max(2600, ...today.map(p => p.v), ...fc.map(p => p.v));
+  const X = m => L + (m - x0) / (x1 - x0) * (W - L - R), Y = v => T + (1 - v / ymax) * (H - T - B);
+  const path = pts => pts.filter(p => p.m >= x0).map((p, i) => `${i ? 'L' : 'M'}${X(p.m).toFixed(1)},${Y(p.v).toFixed(1)}`).join('');
+  let svg = '';
+  for (const v of [0, 1000, 2000]) svg += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#cfd5d6"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v.toLocaleString()}</text>`;
+  for (let h = 6; h <= 24; h += 3) svg += `<text x="${X(h * 60)}" y="${H - 8}" text-anchor="middle">${h}시</text>`;
+  svg += `<line x1="${L}" x2="${W - R}" y1="${Y(OP.CAPACITY)}" y2="${Y(OP.CAPACITY)}" stroke="#d3352b" stroke-width="2"/>`;
+  if (fc.length) svg += `<path d="${path(fc)}" fill="none" stroke="#0b4fb3" stroke-width="2" stroke-dasharray="6 5"/>`;
+  if (today.length > 1) svg += `<path d="${path(today)}" fill="none" stroke="#18202b" stroke-width="3" stroke-linejoin="round"/>`;
+  for (const p of today.slice(-1)) if (p.m >= x0) svg += `<circle cx="${X(p.m)}" cy="${Y(p.v)}" r="5" fill="#18202b"/>`;
+  if (!today.length) svg += `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">오늘 기록이 아직 없습니다</text>`;
+  $('chart').innerHTML = svg;
+
+  // 공연
+  const events = (eventsFile && eventsFile.events) || [], tomorrow = OP.addDays(now.date, 1);
+  const rows = [now.date, tomorrow].flatMap(d => events.filter(e => e.begin <= d && d <= e.end).map(e => ({ d, e })));
+  $('shows').innerHTML = rows.length
+    ? '<tr><th>날짜</th><th>장소</th><th>공연</th><th>시간 안내</th></tr>' + rows.map(({ d, e }) =>
+        `<tr><td>${OP.shortDate(d)}</td><td>${OP.esc(e.venue)}</td><td class="wrapcell">${OP.esc(e.title)}</td><td class="wrapcell">${OP.esc(e.time_text)}</td></tr>`).join('')
+    : '<tr><td>오늘과 내일은 등록된 공연이 없습니다.</td></tr>';
+
+  // 누리집 예상과 실측
+  const latest = new Map();
+  for (const r of official) latest.set(r.target_at_kst, r);
+  const actualAt = target => {
+    const t = OP.kstDate(target + ':00'); let best = null;
+    for (const r of log) if (Math.abs(r.t - t) <= 10 * 60000 && (!best || Math.abs(r.t - t) < Math.abs(best.t - t))) best = r;
+    return best;
+  };
+  const off = [...latest.values()].sort((a, b) => a.target_at_kst < b.target_at_kst ? -1 : 1).slice(-36);
+  $('official').innerHTML = off.length
+    ? '<tr><th>대상 시각</th><th class="num">누리집 예상</th><th class="num">실측</th><th class="num">차이</th></tr>' + off.map(r => {
+        const a = actualAt(r.target_at_kst), ap = a ? OP.pctOf(a.v) : null;
+        return `<tr><td>${OP.shortDate(r.target_at_kst.slice(0, 10))} ${r.target_at_kst.slice(11)}</td><td class="num">${r.forecast_pct}%</td>
+          <td class="num">${a ? `${ap}% (${a.v.toLocaleString()}대)` : '아직 없음'}</td><td class="num">${a ? `${ap - r.forecast_pct > 0 ? '+' : ''}${ap - r.forecast_pct}%p` : ''}</td></tr>`;
+      }).join('')
+    : '<tr><td>기록된 예상값이 아직 없습니다. 누리집은 주말분만 게시합니다.</td></tr>';
+})();
+</script>
+</body>
+</html>

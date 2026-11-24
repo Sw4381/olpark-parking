@@ -1,0 +1,36 @@
+name: collect-events
+on:
+  schedule:
+    - cron: "23 */3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: collect-events
+  cancel-in-progress: false
+jobs:
+  events:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: events
+        continue-on-error: true
+        run: python scripts/fetch_events.py
+      - name: official forecast snapshot
+        continue-on-error: true
+        run: python scripts/snapshot_official_forecast.py
+      - name: commit
+        run: |
+          git config user.name "olpark-bot"
+          git config user.email "olpark-bot@users.noreply.github.com"
+          git add data/events.json data/official_forecast_log.csv 2>/dev/null || git add data
+          git diff --cached --quiet && exit 0
+          git commit -m "data: events and official forecast snapshot"
+          for i in 1 2 3 4 5; do
+            git pull --rebase && git push && exit 0
+            sleep $((RANDOM % 20 + 5))
+          done
+          exit 1
