@@ -84,5 +84,52 @@
  "weekday": {
   "days": 208,
   "full_days": 1
- }
+ },
+ "full_days_total": 56,
+ "zones": [
+  {
+   "zone": "P10",
+   "full_days": 12
+  },
+  {
+   "zone": "P1A",
+   "full_days": 16
+  },
+  {
+   "zone": "P7",
+   "full_days": 16
+  },
+  {
+   "zone": "P1B",
+   "full_days": 18
+  },
+  {
+   "zone": "P9",
+   "full_days": 18
+  },
+  {
+   "zone": "P2",
+   "full_days": 23
+  },
+  {
+   "zone": "P8",
+   "full_days": 24
+  },
+  {
+   "zone": "P11",
+   "full_days": 26
+  },
+  {
+   "zone": "P4",
+   "full_days": 27
+  },
+  {
+   "zone": "P5",
+   "full_days": 29
+  },
+  {
+   "zone": "P6",
+   "full_days": 32
+  }
+ ]
 }

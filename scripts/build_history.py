@@ -53,11 +53,18 @@ def main(path):
         if first:
             g["first_full_hour"] = {"q25": quantile(first, .25), "median": quantile(first, .5), "q75": quantile(first, .75)}
         out[k] = g
+    zone_days = defaultdict(int)
+    for v in full.values():
+        for z in v["zones"]:
+            zone_days[z] += 1
+    zones = [{"zone": z, "full_days": n} for z, n in sorted(zone_days.items(), key=lambda x: (x[1], x[0]))]
     payload = {
         "source": "한국체육산업개발(주) 주차장 혼잡도 정보 (공공데이터포털)",
         "period": [ACTIVE_FROM.isoformat(), ACTIVE_TO.isoformat()],
         "weekend": out,
         "weekday": weekday,
+        "full_days_total": len(full),
+        "zones": zones,
     }
     with open(OUT, "w", encoding="utf-8", newline="\n") as f:
         json.dump(payload, f, ensure_ascii=False, indent=1)

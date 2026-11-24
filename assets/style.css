@@ -159,3 +159,14 @@ td.wrapcell { white-space: normal; min-width: 180px; }
 .dayshows { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 3px solid var(--lane); font-size: 15px; }
 .dayshows li + li { margin-top: 10px; }
 .dayshows small { display: block; color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
+
+/* 자리가 없다면 */
+.alts { list-style: none; margin: 0; padding: 0; background: var(--paper); border-radius: 6px; }
+.alts li { padding: 14px 16px; }
+.alts li + li { border-top: 3px solid var(--lane); }
+.alts b { font-weight: 600; }
+.alts p { margin: 4px 0 0; font-size: 14px; color: var(--ink-soft); }
+.alts .free { float: right; font-family: var(--display); font-size: 18px; margin-left: 10px; }
+.alts .free[data-l="0"], .alts .free[data-l="1"] { color: var(--free); }
+.alts .free[data-l="2"] { color: var(--busy); }
+.alts .free[data-l="3"] { color: var(--full); }

@@ -29,6 +29,12 @@
     </section>
 
     <section>
+      <h2>차량을 돌려보낼 수 있는 곳</h2>
+      <p class="sub">서울시 시영주차장 실시간 주차대수 기준, 지하철 한두 정거장 안의 공영주차장입니다.</p>
+      <div class="panel scroll"><table id="nearby"></table></div>
+    </section>
+
+    <section>
       <h2>오늘과 내일 공연</h2>
       <div class="panel scroll"><table id="shows"></table></div>
     </section>
@@ -51,8 +57,8 @@
 (async () => {
   const $ = id => document.getElementById(id);
   const now = OP.kstParts();
-  const [log, eventsFile, forecast, official] = await Promise.all([
-    OP.loadLog(), OP.getJSON('data/events.json'), OP.getJSON('data/forecast.json'), OP.getCSV('data/official_forecast_log.csv')]);
+  const [log, eventsFile, forecast, official, nearby] = await Promise.all([
+    OP.loadLog(), OP.getJSON('data/events.json'), OP.getJSON('data/forecast.json'), OP.getCSV('data/official_forecast_log.csv'), OP.getJSON('data/nearby.json')]);
   const live = await OP.loadLive(log);
   const series = log.slice();
   if (live && live.live) series.push({ at: `${now.date} ${now.hm}:00`, t: new Date(), v: live.v });
@@ -119,6 +125,14 @@
     ? '<tr><th>날짜</th><th>장소</th><th>공연</th><th>시간 안내</th></tr>' + rows.map(({ d, e }) =>
         `<tr><td>${OP.shortDate(d)}</td><td>${OP.esc(e.venue)}</td><td class="wrapcell">${OP.esc(e.title)}</td><td class="wrapcell">${OP.esc(e.time_text)}</td></tr>`).join('')
     : '<tr><td>오늘과 내일은 등록된 공연이 없습니다.</td></tr>';
+
+  // 인근 공영주차장
+  const lots = (nearby && nearby.lots) || [];
+  $('nearby').innerHTML = lots.length
+    ? '<tr><th>주차장</th><th class="num">남은 자리</th><th class="num">전체</th><th>공원까지</th><th>기준 시각</th></tr>' + lots.map(l =>
+        `<tr><td>${OP.esc(l.name)}</td><td class="num">${l.free.toLocaleString()}</td><td class="num">${l.capacity.toLocaleString()}</td><td class="wrapcell">${OP.esc(l.way)}</td><td>${OP.esc(l.updated_at_kst.slice(5))}</td></tr>`).join('')
+      + `<tr><th>합계</th><th class="num">${lots.reduce((s, l) => s + l.free, 0).toLocaleString()}</th><th class="num">${lots.reduce((s, l) => s + l.capacity, 0).toLocaleString()}</th><th></th><th></th></tr>`
+    : '<tr><td>인근 주차장 정보를 불러오지 못했습니다.</td></tr>';
 
   // 누리집 예상과 실측
   const latest = new Map();
