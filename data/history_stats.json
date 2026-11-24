@@ -1,0 +1,88 @@
+{
+ "source": "한국체육산업개발(주) 주차장 혼잡도 정보 (공공데이터포털)",
+ "period": [
+  "2025-02-12",
+  "2025-11-30"
+ ],
+ "weekend": {
+  "가을|일": {
+   "days": 13,
+   "full_days": 6,
+   "wide_days": 4,
+   "first_full_hour": {
+    "q25": 11,
+    "median": 13,
+    "q75": 16
+   }
+  },
+  "가을|토": {
+   "days": 13,
+   "full_days": 7,
+   "wide_days": 6,
+   "first_full_hour": {
+    "q25": 13,
+    "median": 13,
+    "q75": 13
+   }
+  },
+  "겨울|일": {
+   "days": 2,
+   "full_days": 0,
+   "wide_days": 0
+  },
+  "겨울|토": {
+   "days": 2,
+   "full_days": 2,
+   "wide_days": 0,
+   "first_full_hour": {
+    "q25": 10,
+    "median": 10,
+    "q75": 11
+   }
+  },
+  "봄|일": {
+   "days": 13,
+   "full_days": 12,
+   "wide_days": 7,
+   "first_full_hour": {
+    "q25": 13,
+    "median": 14,
+    "q75": 15
+   }
+  },
+  "봄|토": {
+   "days": 14,
+   "full_days": 14,
+   "wide_days": 6,
+   "first_full_hour": {
+    "q25": 11,
+    "median": 12,
+    "q75": 13
+   }
+  },
+  "여름|일": {
+   "days": 14,
+   "full_days": 7,
+   "wide_days": 0,
+   "first_full_hour": {
+    "q25": 14,
+    "median": 14,
+    "q75": 15
+   }
+  },
+  "여름|토": {
+   "days": 13,
+   "full_days": 7,
+   "wide_days": 3,
+   "first_full_hour": {
+    "q25": 13,
+    "median": 15,
+    "q75": 15
+   }
+  }
+ },
+ "weekday": {
+  "days": 208,
+  "full_days": 1
+ }
+}

@@ -137,3 +137,25 @@ td.wrapcell { white-space: normal; min-width: 180px; }
   .lamp.on { animation: lit .5s ease-out 1; }
   @keyframes lit { from { filter: brightness(2.2); } to { filter: none; } }
 }
+
+/* 날짜 고르기 */
+.dates { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 10px; }
+.dates button {
+  all: unset; box-sizing: border-box; cursor: pointer; flex: none; width: 52px; padding: 8px 0 6px;
+  text-align: center; background: var(--paper); border-radius: 6px;
+}
+.dates button span { display: block; font-size: 13px; color: var(--ink-soft); }
+.dates button b { display: block; font-family: var(--display); font-weight: 400; font-size: 22px; line-height: 1.2; }
+.dates button.we span { color: var(--full); }
+.dates button i { display: block; width: 6px; height: 6px; border-radius: 50%; margin: 3px auto 0; }
+.dates button i.has { background: var(--sign); }
+.dates button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.dates button[aria-pressed="true"] span { color: rgba(255,255,255,.8); }
+.dates button[aria-pressed="true"] i.has { background: var(--lane); }
+.dates button:focus-visible { outline: 3px solid var(--lane); outline-offset: 1px; }
+.daypanel { background: var(--paper); border-radius: 6px; padding: 16px; }
+.daypanel h3 { margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--ink-soft); }
+.daypanel .note { margin: 8px 0 0; }
+.dayshows { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 3px solid var(--lane); font-size: 15px; }
+.dayshows li + li { margin-top: 10px; }
+.dayshows small { display: block; color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
