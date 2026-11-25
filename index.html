@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script>try{var t=localStorage.getItem('op-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t}catch(e){}</script>
-<link rel="stylesheet" href="assets/style.css?v=10">
+<link rel="stylesheet" href="assets/style.css?v=11">
 </head>
 <body>
 <div class="wrap">
@@ -95,7 +95,7 @@
   </footer>
 </div>
 
-<script src="assets/common.js?v=10"></script>
+<script src="assets/common.js?v=11"></script>
 <script>
 (async () => {
   const $ = id => document.getElementById(id);
@@ -165,23 +165,27 @@
       const cond = `2025년에 같은 조건(${condText(day.key)})이던 ${adv.n_days}일`;
       const band = '<div class="band small" data-band></div><div class="hours" aria-hidden="true"><span>06시</span><span>09시</span><span>12시</span><span>15시</span><span>18시</span><span>21시</span></div><p class="readout" aria-live="polite"></p>'
         + (day.nowcast ? '<p class="note">진한 막대는 오늘 실측, 연한 막대는 지금 실측을 반영해 고친 예상입니다.</p>' : '<p class="note">2025년 같은 조건인 날의 평균입니다.</p>');
+      // 같은 조건이어도 공연마다 차이가 크다는 점을 숨기지 않는다(오늘은 실측 보정이 있으므로 생략).
+      const r = adv.peak_range_pct, pc = v => v >= 100 ? '100% 이상' : v + '%';
+      const spread = (!day.nowcast && r && r[1] - r[0] >= 15)
+        ? `<p class="spread"><b>같은 조건이어도 날마다 다릅니다.</b> 가장 붐빈 때의 이용률이 날의 절반은 ${pc(r[0])}에서 ${pc(r[1])} 사이였고, 나머지는 그보다 낮거나 높았습니다. ${day.big ? '공연에 따라 달라지니 ' : ''}오시는 날 오전에 이 화면을 다시 확인해 주세요. 그날 실측으로 예상을 고쳐 보여 드립니다.</p>` : '';
       const fact = (k, v, small, l) => `<div ${l ? `data-l="${l}"` : ''}><dt>${k}</dt><dd>${v}<small>${small}</small></dd></div>`;
       const share = fact('작년 같은 조건', `${adv.n_days}일 중 ${adv.full_days}일`, '만차 수준에 이름');
       if (adv.full_from) {
         const c = adv.cross;
         return `<div class="advice"><strong>차로 오신다면 ${OP.hmText(adv.arrive_by)} 전에 들어오세요</strong>
           <dl class="facts light">${fact('주로 차는 시각', `${c.q25}~${c.q75}`, '만차 수준 도달')}${share}</dl>
-          <p>${cond} 가운데 ${adv.full_days}일이 만차 수준(수용의 90%)에 이르렀습니다. ${TRANSIT}</p></div>` + band;
+          <p>${cond} 가운데 ${adv.full_days}일이 만차 수준(수용의 90%)에 이르렀습니다. ${TRANSIT}</p>${spread}</div>` + band;
       }
       const peak = fact('가장 붐빌 때', adv.peak_time, `평균 ${adv.peak_pct}%`);
       if (adv.full_days / adv.n_days >= 0.1) {
         return `<div class="advice"><strong>대체로 자리가 있지만 찰 때도 있었습니다</strong>
           <dl class="facts light">${peak}${share}</dl>
-          <p>${cond} 가운데 ${adv.full_days}일이 만차 수준(수용의 90%)에 이르렀습니다.</p></div>` + band;
+          <p>${cond} 가운데 ${adv.full_days}일이 만차 수준(수용의 90%)에 이르렀습니다.</p>${spread}</div>` + band;
       }
       return `<div class="advice"><strong>하루 종일 자리가 남을 것으로 보입니다</strong>
         <dl class="facts light">${peak}${share}</dl>
-        <p>${cond} 가운데 만차 수준에 이른 날은 ${adv.full_days ? adv.full_days + '일뿐이었습니다' : '없었습니다'}.</p></div>` + band;
+        <p>${cond} 가운데 만차 수준에 이른 날은 ${adv.full_days ? adv.full_days + '일뿐이었습니다' : '없었습니다'}.</p>${spread}</div>` + band;
     }
     // 예보가 없으면 2025년 만차 기록을 그대로 보여 준다.
     const dw = dowOf(date), season = SEASON(+date.slice(5, 7));

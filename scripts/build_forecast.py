@@ -92,6 +92,8 @@ def main():
         peak_s = max(range(S0, model["slots"]), key=lambda s: p["mean"][s])
         adv = {"peak_n": p["mean"][peak_s], "peak_pct": round(100 * p["mean"][peak_s] / cap), "peak_time": hm(peak_s),
                "n_days": p["n_days"], "full_days": p["full_days"], "cross": p["cross"]}
+        if "peak_q25" in p:      # 같은 조건인 날들의 정점이 얼마나 벌어지는지(가운데 절반)
+            adv["peak_range_pct"] = [round(100 * p["peak_q25"] / cap), round(100 * p["peak_q75"] / cap)]
         if p["cross"] and p["full_days"] / p["n_days"] >= 0.3:
             adv["full_from"] = p["cross"]["median"]
             adv["arrive_by"] = hm(max(S0, to_slot(p["cross"]["q25"]) - 1))
