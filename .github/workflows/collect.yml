@@ -22,12 +22,15 @@ jobs:
         env:
           SEOUL_API_KEY: ${{ secrets.SEOUL_API_KEY }}
         run: python scripts/fetch_nearby.py
+      - name: forecast
+        continue-on-error: true
+        run: python scripts/build_forecast.py
       - name: commit
         run: |
           git config user.name "olpark-bot"
           git config user.email "olpark-bot@users.noreply.github.com"
           git add data/parking_log.csv
-          git add data/nearby.json 2>/dev/null || true
+          git add data/nearby.json data/forecast.json 2>/dev/null || true
           git diff --cached --quiet && exit 0
           git commit -m "data: parking snapshot"
           for i in 1 2 3 4 5; do

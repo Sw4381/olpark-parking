@@ -24,8 +24,14 @@
 
     <section>
       <h2>오늘 주차 대수</h2>
-      <p class="sub">굵은 선이 실측, 점선이 예측입니다. 빨간 선은 수용 2,200대입니다.</p>
+      <p class="sub">굵은 선이 실측, 파란 점선이 지금 실측을 반영한 예상입니다. 회색 띠는 2025년 같은 조건인 날의 가운데 절반(25~75%)이고, 빨간 선은 만차 수준(수용 2,200대의 90%)입니다.</p>
       <div class="panel"><svg class="chart" id="chart" viewBox="0 0 900 300" role="img" aria-label="오늘 주차 대수 추이"></svg></div>
+    </section>
+
+    <section>
+      <h2>이 경보는 얼마나 맞았나</h2>
+      <p class="sub" id="valSub"></p>
+      <div class="panel scroll"><table id="val"></table></div>
     </section>
 
     <section>
@@ -41,14 +47,14 @@
 
     <section>
       <h2>누리집 예상 이용률과 실측</h2>
-      <p class="sub">올림픽공원 누리집 "주차장 예상 이용률 서비스"가 게시한 값과, 같은 시각 실시간 주차현황 API의 실측을 나란히 둡니다.</p>
+      <p class="sub">올림픽공원 누리집 "주차장 예상 이용률 서비스"가 게시한 값과, 같은 시각 실시간 주차현황 API의 표시값을 나란히 둡니다. 이 표만 보정하지 않은 표시값 기준입니다.</p>
       <div class="panel scroll"><table id="official"></table></div>
     </section>
   </main>
 
   <footer>
-    <p>유입 속도와 만차 도달 시각은 최근 30분 변화를 그대로 이은 단순 계산입니다. 예측 모델 기준의 이상 유입 경보는 모델 검증이 끝나면 이 화면에 추가됩니다.</p>
-    <p>실측은 10분 주기 수집 기록이며, GitHub Actions 사정으로 간격이 벌어질 수 있습니다.</p>
+    <p>주차 대수는 동2·남2·북2문 기준입니다. 실시간 주차현황 API 값은 2025년 입출차 기록으로 복원한 값보다 일정하게 크게 나와, 그 차이를 추정해 뺀 값을 씁니다. <span id="offNote"></span></p>
+    <p>예상은 2025년 입출차정보에서 만든 요일·공연 조건별 패턴에, 지금 실측과 패턴의 차이를 반영한 값입니다. 실측은 10분 주기 수집 기록이며 GitHub Actions 사정으로 간격이 벌어질 수 있습니다.</p>
   </footer>
 </div>
 
@@ -57,8 +63,10 @@
 (async () => {
   const $ = id => document.getElementById(id);
   const now = OP.kstParts();
-  const [log, eventsFile, forecast, official, nearby] = await Promise.all([
-    OP.loadLog(), OP.getJSON('data/events.json'), OP.getJSON('data/forecast.json'), OP.getCSV('data/official_forecast_log.csv'), OP.getJSON('data/nearby.json')]);
+  const [log, eventsFile, forecast, official, nearby, model] = await Promise.all([
+    OP.loadLog(), OP.getJSON('data/events.json'), OP.getJSON('data/forecast.json'), OP.getCSV('data/official_forecast_log.csv'), OP.getJSON('data/nearby.json'), OP.getJSON('data/model.json')]);
+  const liveOff = forecast && forecast.live_offset;
+  OP.setOffset(liveOff && liveOff.value);
   const live = await OP.loadLive(log);
   const series = log.slice();
   if (live && live.live) series.push({ at: `${now.date} ${now.hm}:00`, t: new Date(), v: live.v });
@@ -73,50 +81,71 @@
     return best ? cur.v - best.v : null;
   };
   const signed = n => n == null ? '기록 부족' : (n > 0 ? '+' : '') + n.toLocaleString() + '대';
-  const d30 = ago(30), d60 = ago(60);
+  const fday = forecast && forecast.days && forecast.days[now.date];
+  const fresh = cur && cur.at.slice(0, 10) === now.date;
+  const nc = fresh ? OP.nowcast(model, fday, OP.core(cur.v), OP.hmToMin(cur.at.slice(11, 16))) : null;
   const cells = [];
   if (cur) {
-    const pct = OP.pctOf(cur.v), lv = OP.level(pct), left = OP.CAPACITY - cur.v;
-    cells.push({ k: '현재 주차 대수', v: `${cur.v.toLocaleString()}대 <small>${pct}%, ${OP.LEVELS[lv]}</small>`, c: lv === 3 ? 'alert' : lv === 2 ? 'warn' : '' });
-    cells.push({ k: '남은 자리', v: `${Math.max(left, 0).toLocaleString()}대` });
-    cells.push({ k: '최근 30분 변화', v: signed(d30) });
-    cells.push({ k: '최근 60분 변화', v: signed(d60) });
-    let eta = '기록 부족', c = '';
-    if (left <= 0) { eta = '수용 대수 도달'; c = 'alert'; }
-    else if (d30 != null) {
-      if (d30 <= 0) eta = '유입 없음';
-      else { const m = Math.round(left / (d30 / 30)); eta = m > 600 ? '10시간 이상' : `약 ${m}분 뒤`; c = m <= 30 ? 'alert' : m <= 60 ? 'warn' : ''; }
-    }
-    cells.push({ k: '지금 속도로 수용 대수 도달', v: eta, c });
-    const fday = forecast && forecast.days && forecast.days[now.date];
-    if (fday && fday.slots) {
-      const s = fday.slots.filter(x => x.t <= now.hm).pop();
-      if (s) { const diff = pct - s.pct; cells.push({ k: '예측 대비', v: `${diff > 0 ? '+' : ''}${diff}%p <small>예측 ${s.pct}%</small>`, c: diff >= 15 ? 'alert' : diff >= 8 ? 'warn' : '' }); }
-    }
-    $('headline').textContent = lv === 3 ? '주차장이 수용 한계에 가깝습니다' : (c === 'alert' ? '30분 안에 만차에 이를 속도입니다' : `현재 ${OP.LEVELS[lv]} 단계입니다`);
-    $('stamp').textContent = `${now.date} ${now.hm} 기준. ${live && live.live ? '실시간 API 값입니다.' : '수집 기록의 마지막 값입니다.'}`;
+    const n = OP.core(cur.v), pct = OP.pctOf(n), lv = OP.level(pct);
+    cells.push({ k: '현재 주차 대수', v: `${n.toLocaleString()}대 <small>${pct}%, ${OP.LEVELS[lv]}</small>`, c: lv === 3 ? 'alert' : '' });
+    let head = `현재 ${OP.LEVELS[lv]} 단계입니다`;
+    if (nc) {
+      const zc = nc.z >= 2 ? 'alert' : nc.z >= 1 ? 'warn' : '';
+      cells.push({ k: '평소 같은 시각 대비', v: `${signed(nc.r)} <small>평소 ${nc.usual.toLocaleString()}대</small>`, c: zc });
+      cells.push({ k: '오늘 남은 시간의 예상 정점', v: `${nc.peak.n.toLocaleString()}대 <small>${OP.hmText(nc.peak.t)}쯤, ${nc.peak.pct}%</small>`, c: nc.peak.n >= OP.FULL ? 'warn' : '' });
+      const lead = nc.cross ? OP.hmToMin(nc.cross.t) - OP.hmToMin(cur.at.slice(11, 16)) : null;
+      cells.push({ k: '만차 수준 도달 예상', v: lv === 3 ? '이미 도달' : nc.cross ? `${OP.hmText(nc.cross.t)}쯤 <small>${lead > 0 ? `약 ${Math.round(lead / 30) / 2}시간 뒤` : '곧'}</small>` : '오늘은 없음', c: lv === 3 || (nc.cross && lead <= 60) ? 'alert' : nc.cross ? 'warn' : '' });
+      if (lv === 3) head = '주차장이 수용 한계에 가깝습니다';
+      else if (nc.cross && nc.z >= 1) head = `평소보다 많이 들어오고 있습니다. ${OP.hmText(nc.cross.t)}쯤 만차 수준이 예상됩니다`;
+      else if (nc.cross) head = `${OP.hmText(nc.cross.t)}쯤 만차 수준이 예상됩니다`;
+      else if (nc.z >= 2) head = `평소 같은 시각보다 ${nc.r.toLocaleString()}대 많습니다`;
+      else head = '평소 수준입니다. 오늘 만차 수준은 예상되지 않습니다';
+    } else if (lv === 3) head = '주차장이 수용 한계에 가깝습니다';
+    cells.push({ k: '최근 30분 변화', v: signed(ago(30)) });
+    cells.push({ k: '실시간 표시값', v: `${cur.v.toLocaleString()}대 <small>보정 -${OP.offset().toLocaleString()}대</small>` });
+    $('headline').textContent = head;
+    $('stamp').textContent = `${fresh ? `${now.date} ${cur.at.slice(11, 16)}` : cur.at.slice(0, 16)} 기준. ${live && live.live ? '실시간 API 값입니다.' : '수집 기록의 마지막 값입니다.'}`;
   } else {
     $('headline').textContent = '주차 현황을 불러오지 못했습니다';
   }
   $('cells').innerHTML = cells.map(x => `<div class="cell ${x.c || ''}"><div class="k">${x.k}</div><div class="v">${x.v}</div></div>`).join('');
+  if (liveOff) $('offNote').textContent = `지금 쓰는 차이는 ${liveOff.value.toLocaleString()}대입니다(${liveOff.method}, 기록 ${liveOff.n}건).`;
 
   // 오늘 추이
   const W = 900, H = 300, L = 46, R = 12, T = 12, B = 28, x0 = 360, x1 = 1440;
-  const today = series.filter(r => r.at.slice(0, 10) === now.date).map(r => ({ m: OP.hmToMin(r.at.slice(11, 16)), v: r.v }));
-  const fday = forecast && forecast.days && forecast.days[now.date];
-  const fc = ((fday && fday.slots) || []).map(s => ({ m: OP.hmToMin(s.t), v: Math.round(s.pct * OP.CAPACITY / 100) }));
-  const ymax = Math.max(2600, ...today.map(p => p.v), ...fc.map(p => p.v));
+  const today = series.filter(r => r.at.slice(0, 10) === now.date).map(r => ({ m: OP.hmToMin(r.at.slice(11, 16)), v: OP.core(r.v) }));
+  const base = ((fday && fday.slots) || []).map(s => ({ m: OP.hmToMin(s.t) + 15, v: s.n, lo: s.lo, hi: s.hi }));
+  const fc = nc ? nc.slots.filter(s => !s.past).map((s, i) => ({ m: i ? OP.hmToMin(s.t) + 15 : OP.hmToMin(cur.at.slice(11, 16)), v: s.n })) : [];
+  const ymax = Math.max(2600, ...today.map(p => p.v), ...fc.map(p => p.v), ...base.map(p => p.hi)) * 1.04;
   const X = m => L + (m - x0) / (x1 - x0) * (W - L - R), Y = v => T + (1 - v / ymax) * (H - T - B);
   const path = pts => pts.filter(p => p.m >= x0).map((p, i) => `${i ? 'L' : 'M'}${X(p.m).toFixed(1)},${Y(p.v).toFixed(1)}`).join('');
   let svg = '';
-  for (const v of [0, 1000, 2000]) svg += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#cfd5d6"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v.toLocaleString()}</text>`;
+  for (const v of [0, 1000, 2000, 3000].filter(v => v < ymax)) svg += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#cfd5d6"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v.toLocaleString()}</text>`;
   for (let h = 6; h <= 24; h += 3) svg += `<text x="${X(h * 60)}" y="${H - 8}" text-anchor="middle">${h}시</text>`;
-  svg += `<line x1="${L}" x2="${W - R}" y1="${Y(OP.CAPACITY)}" y2="${Y(OP.CAPACITY)}" stroke="#d3352b" stroke-width="2"/>`;
-  if (fc.length) svg += `<path d="${path(fc)}" fill="none" stroke="#0b4fb3" stroke-width="2" stroke-dasharray="6 5"/>`;
+  if (base.length) {
+    svg += `<path d="${base.map((p, i) => `${i ? 'L' : 'M'}${X(p.m).toFixed(1)},${Y(p.hi).toFixed(1)}`).join('')}${base.slice().reverse().map(p => `L${X(p.m).toFixed(1)},${Y(p.lo).toFixed(1)}`).join('')}Z" fill="#dfe3e4"/>`;
+    svg += `<path d="${path(base)}" fill="none" stroke="#8a949e" stroke-width="1.5"/>`;
+  }
+  svg += `<line x1="${L}" x2="${W - R}" y1="${Y(OP.FULL)}" y2="${Y(OP.FULL)}" stroke="#d3352b" stroke-width="2"/><text x="${W - R}" y="${Y(OP.FULL) - 6}" text-anchor="end" style="fill:#d3352b">만차 수준 ${OP.FULL.toLocaleString()}대</text>`;
+  if (fc.length > 1) svg += `<path d="${path(fc)}" fill="none" stroke="#0b4fb3" stroke-width="2.5" stroke-dasharray="6 5"/>`;
   if (today.length > 1) svg += `<path d="${path(today)}" fill="none" stroke="#18202b" stroke-width="3" stroke-linejoin="round"/>`;
-  for (const p of today.slice(-1)) if (p.m >= x0) svg += `<circle cx="${X(p.m)}" cy="${Y(p.v)}" r="5" fill="#18202b"/>`;
-  if (!today.length) svg += `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">오늘 기록이 아직 없습니다</text>`;
+  for (const p of today) if (p.m >= x0) svg += `<circle cx="${X(p.m)}" cy="${Y(p.v)}" r="${p === today[today.length - 1] ? 5 : 3}" fill="#18202b"/>`;
+  if (!today.length) svg += `<text x="${W / 2}" y="${T + 16}" text-anchor="middle">오늘 실측 기록이 아직 없습니다</text>`;
   $('chart').innerHTML = svg;
+
+  // 검증 결과
+  const val = forecast && forecast.accuracy && forecast.accuracy.validation;
+  if (val) {
+    const ew = val['당일 보정']['조기경보'], nd = val['당일 보정'], pri = val['사전 예보']['요일·공휴일·대형 공연 패턴'];
+    $('valSub').textContent = `2025년 1~8월 ${val['학습 일수']}일로 만든 패턴과 계수를, 보지 않은 9~11월 ${val['검증 일수']}일에 적용한 결과입니다. `
+      + `만차 수준에 이른 ${ew['만차 수준에 이른 날']}일 가운데 ${ew['도달 전에 경보한 날']}일을 도달 전에 알렸고(중앙값 ${ew['앞선 시간(시간) 중앙값']}시간 전), ${ew['놓친 날']}일은 놓쳤습니다. `
+      + `만차 수준에 이르지 않은 ${ew['도달하지 않은 날']}일 가운데 ${ew['도달하지 않았는데 경보한 날']}일은 잘못 경보했습니다.`;
+    const row = (name, r) => `<tr><td>${name}</td><td class="num">${Math.round(r['정점 MAE']).toLocaleString()}대</td><td class="num">${r['경보한 날'] ?? r['예보가 짚은 날']}일</td><td class="num">${r['적중']}일</td></tr>`;
+    $('val').innerHTML = `<tr><th>예상 시점</th><th class="num">하루 정점 오차(평균)</th><th class="num">만차 수준으로 본 날</th><th class="num">그중 실제 ${pri['만차 수준인 날']}일과 일치</th></tr>`
+      + row('전날까지(사전 예보)', pri) + row('당일 9시 실측 반영', nd['9시 실측 반영']) + row('당일 11시 실측 반영', nd['11시 실측 반영']) + row('당일 13시 실측 반영', nd['13시 실측 반영']);
+  } else {
+    $('val').innerHTML = '<tr><td>검증 결과를 불러오지 못했습니다.</td></tr>';
+  }
 
   // 공연
   const events = (eventsFile && eventsFile.events) || [], tomorrow = OP.addDays(now.date, 1);
@@ -145,7 +174,7 @@
   const off = [...latest.values()].sort((a, b) => a.target_at_kst < b.target_at_kst ? -1 : 1).slice(-36);
   $('official').innerHTML = off.length
     ? '<tr><th>대상 시각</th><th class="num">누리집 예상</th><th class="num">실측</th><th class="num">차이</th></tr>' + off.map(r => {
-        const a = actualAt(r.target_at_kst), ap = a ? OP.pctOf(a.v) : null;
+        const a = actualAt(r.target_at_kst), ap = a ? Math.round(a.v / OP.CAPACITY * 100) : null;
         return `<tr><td>${OP.shortDate(r.target_at_kst.slice(0, 10))} ${r.target_at_kst.slice(11)}</td><td class="num">${r.forecast_pct}%</td>
           <td class="num">${a ? `${ap}% (${a.v.toLocaleString()}대)` : '아직 없음'}</td><td class="num">${a ? `${ap - r.forecast_pct > 0 ? '+' : ''}${ap - r.forecast_pct}%p` : ''}</td></tr>`;
       }).join('')

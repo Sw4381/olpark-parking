@@ -1,8 +1,15 @@
 // 올팍 주차예보 공통: 데이터 읽기와 시간·혼잡 단계 계산
 const OP = (() => {
   const LIVE_URL = 'https://www.ksponco.or.kr/online/main/parkingorsApi.do?apiKey=PARKING21803504';
-  // 수용 대수와 단계 기준은 올림픽공원 누리집 "주차장 예상 이용률 서비스" 표기를 따른다.
+  // 수용 대수와 단계 기준은 올림픽공원 누리집 "주차장 예상 이용률 서비스" 표기를 따른다(동2·남2·북2문 기준).
   const CAPACITY = 2200;
+  const FULL = 0.9 * CAPACITY;
+  // 실시간 API 값은 2025년 입출차 기록으로 복원한 주차 대수보다 일정하게 크다(출차 기록이 없는 차량이 쌓인 것으로 추정).
+  // 그 차이를 data/forecast.json 의 live_offset 으로 받아 빼고 쓴다.
+  let OFFSET = 0;
+  const setOffset = v => { OFFSET = Number.isFinite(+v) ? +v : 0; };
+  const offset = () => OFFSET;
+  const core = v => Math.max(0, v - OFFSET);
   const LEVELS = ['여유', '다소 혼잡', '혼잡', '만차'];
   const level = pct => (pct >= 90 ? 3 : pct >= 70 ? 2 : pct >= 50 ? 1 : 0);
   const pctOf = n => Math.round((n / CAPACITY) * 100);
@@ -63,7 +70,7 @@ const OP = (() => {
     for (const r of log) {
       if (r.at.slice(0, 10) !== date) continue;
       const i = slotOf(hmToMin(r.at.slice(11, 16)));
-      if (i >= 0 && i < SLOTS) out[i] = Math.max(out[i] ?? 0, pctOf(r.v));
+      if (i >= 0 && i < SLOTS) out[i] = Math.max(out[i] ?? 0, pctOf(core(r.v)));
     }
     return out;
   };
@@ -90,6 +97,23 @@ const OP = (() => {
     return out;
   };
 
+  // 당일 보정: 지금 실측이 패턴보다 r대 많으면 t시각 예보에 k[s][t]*r 을 더한다. 계수는 data/model.json.
+  const nowcast = (model, fday, obs, nowMin) => {
+    if (!model || !fday) return null;
+    const p = model.profiles[fday.key]; if (!p) return null;
+    const s = Math.min(model.slots - 1, Math.max(0, Math.floor(nowMin / 30)));
+    const r = obs - p.mean[s], k = model.k[s], first = model.slots - fday.slots.length;
+    const slots = fday.slots.map((x, i) => {
+      const j = first + i;
+      if (j < s) return { ...x, past: true };
+      const n = Math.max(0, Math.round(j === s ? obs : x.n + k[j] * r));
+      return { ...x, n, pct: Math.round(n / CAPACITY * 100) };
+    });
+    const future = slots.filter(x => !x.past);
+    const peak = future.reduce((a, b) => (b.n > a.n ? b : a), future[0]);
+    return { s, r: Math.round(r), usual: p.mean[s], z: r / (model.resid_sd[s] || 1), slots, peak, cross: future.find(x => x.n >= FULL) || null };
+  };
+
   // 공연 안내문에서 시작 시각을 뽑는다. 못 읽으면 빈 배열(문구는 그대로 보여 준다).
   const showTimes = text => {
     const out = new Set();
@@ -110,6 +134,6 @@ const OP = (() => {
 
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  return { CAPACITY, LEVELS, level, pctOf, kstParts, kstDate, shortDate, addDays, hmText, hmToMin, getJSON, getCSV,
+  return { CAPACITY, FULL, setOffset, offset, core, nowcast, LEVELS, level, pctOf, kstParts, kstDate, shortDate, addDays, hmText, hmToMin, getJSON, getCSV,
     loadLog, loadLive, daySlots, forecastSlots, renderBand, showTimes, esc };
 })();
