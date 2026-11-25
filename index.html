@@ -207,6 +207,7 @@
   for (let i = 0; i < 14; i++) strip.push(OP.addDays(now.date, i));
   const DOWS = ['일', '월', '화', '수', '목', '금', '토'];
   let picked = now.date;
+  { const h = location.hash.slice(1); if (/^\d{4}-\d\d-\d\d$/.test(h) && h >= now.date && days[h]) picked = h; }
   const dayLevel = d => { const a = days[d] && days[d].advice; return !a ? '' : `data-l="${a.full_from ? 3 : a.full_days / a.n_days >= 0.1 ? 2 : 0}"`; };
   const renderDay = () => {
     $('dates').innerHTML = strip.map(d => `<button type="button" aria-pressed="${d === picked}" data-d="${d}" class="${dowOf(d) % 6 ? '' : 'we'}" aria-label="${OP.shortDate(d)}">
@@ -224,6 +225,7 @@
   $('dates').addEventListener('click', ev => {
     const b = ev.target.closest('button'); if (!b) return;
     picked = b.dataset.d; renderDay();
+    try { history.replaceState(null, '', '#' + picked); } catch {}
   });
 
   // 자리가 없다면: 늦게 차는 구역, 인근 공영주차장, 대중교통
