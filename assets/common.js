@@ -88,6 +88,17 @@ const OP = (() => {
     }
     el.innerHTML = html;
     el.setAttribute('role', 'img');
+    // 막대를 누르거나 가리키면 아래 칸에 그 시각의 값을 보여 준다.
+    const out = el.parentNode && el.parentNode.querySelector('.readout');
+    if (out) {
+      out.textContent = '';
+      const pick = ev => {
+        const b = ev.target.closest('i'); if (!b || !el.contains(b)) return;
+        el.querySelectorAll('.sel').forEach(x => x.classList.remove('sel'));
+        b.classList.add('sel'); out.textContent = b.title;
+      };
+      el.onclick = pick; el.onpointerover = pick;
+    }
   };
   const forecastSlots = day => {
     const out = new Array(SLOTS).fill(null);
@@ -132,6 +143,16 @@ const OP = (() => {
     }
     return [...out].sort((a, b) => a - b);
   };
+
+  // 밝은·어두운 화면 전환
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('theme'); if (!btn) return;
+    btn.addEventListener('click', () => {
+      const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      try { localStorage.setItem('op-theme', next); } catch {}
+    });
+  });
 
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 

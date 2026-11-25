@@ -4,22 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>올팍 주차예보 운영자 화면</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=5">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<script>try{var t=localStorage.getItem('op-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="stylesheet" href="assets/style.css?v=7">
 </head>
 <body>
-<div class="wrap wide">
+<div class="wrap">
   <header class="top">
-    <a class="brand" href="./">올팍 주차예보</a>
-    <nav><a href="./">방문객 화면</a></nav>
+    <a class="brand" href="./"><span class="logo" aria-hidden="true">P</span>올팍 주차예보</a>
+    <nav class="seg" aria-label="화면 전환"><a href="./">방문객</a><a href="ops.html" aria-current="page">운영자</a></nav>
+    <button class="theme" id="theme" type="button" aria-label="밝은 화면과 어두운 화면 전환"></button>
   </header>
 
   <main>
-    <div class="status" id="status" data-s="none" aria-live="polite">
-      <h1 class="verdict" id="headline">운영 현황을 불러오는 중입니다</h1>
-      <p id="stamp"></p>
+    <div class="hero ops" id="status" data-s="none" aria-live="polite">
+      <div>
+        <span class="chip" id="chip">확인 중</span>
+        <h1 class="verdict" id="headline">운영 현황을 불러오는 중입니다</h1>
+        <p id="stamp"></p>
+      </div>
     </div>
 
     <div class="grid" id="cells"></div>
@@ -29,10 +33,10 @@
       <p class="sub">동2·남2·북2문 기준 주차 대수입니다. 만차 수준은 수용 2,200대의 90%입니다.</p>
       <div class="panel"><svg class="chart" id="chart" viewBox="0 0 900 380" role="img" aria-label="오늘 주차 대수 추이"></svg>
         <ul class="legend">
-          <li><b style="background:#101a26;height:4px;vertical-align:4px;width:22px"></b>실측</li>
-          <li><b style="background:repeating-linear-gradient(90deg,#0a47a3 0 7px,transparent 7px 11px);height:4px;vertical-align:4px;width:22px"></b>지금 실측을 반영한 예상</li>
-          <li><b style="background:#c9d6e8"></b>2025년 같은 조건의 가운데 절반</li>
-          <li><b style="background:#c4161c;height:3px;vertical-align:4px;width:22px"></b>만차 수준</li>
+          <li><b class="ln" style="background:var(--ink)"></b>실측</li>
+          <li><b class="ln" style="background:repeating-linear-gradient(90deg,var(--accent) 0 4px,transparent 4px 8px)"></b>지금 실측을 반영한 예상</li>
+          <li><b style="background:color-mix(in srgb,var(--accent) 30%,transparent)"></b>2025년 같은 조건의 가운데 절반</li>
+          <li><b class="ln" style="background:var(--full)"></b>만차 수준</li>
         </ul></div>
     </section>
 
@@ -68,7 +72,7 @@
   </footer>
 </div>
 
-<script src="assets/common.js?v=5"></script>
+<script src="assets/common.js?v=7"></script>
 <script>
 (async () => {
   const $ = id => document.getElementById(id);
@@ -114,6 +118,7 @@
     cells.push({ k: '최근 30분 변화', v: signed(ago(30)) });
     cells.push({ k: '실시간 표시값', v: `${cur.v.toLocaleString()}대 <small>보정 -${OP.offset().toLocaleString()}대</small>` });
     $('headline').textContent = head;
+    $('chip').textContent = OP.LEVELS[lv];
     $('status').dataset.s = lv === 3 || cells.some(x => x.c === 'alert') ? 'alert' : nc && (nc.cross || nc.z >= 1) ? 'warn' : nc ? 'ok' : 'none';
     $('stamp').textContent = `${fresh ? `${now.date} ${cur.at.slice(11, 16)}` : cur.at.slice(0, 16)} 기준. ${live && live.live ? '실시간 API 값입니다.' : '수집 기록의 마지막 값입니다.'}`;
   } else {
@@ -131,16 +136,16 @@
   const X = m => L + (m - x0) / (x1 - x0) * (W - L - R), Y = v => T + (1 - v / ymax) * (H - T - B);
   const path = pts => pts.filter(p => p.m >= x0).map((p, i) => `${i ? 'L' : 'M'}${X(p.m).toFixed(1)},${Y(p.v).toFixed(1)}`).join('');
   let svg = '';
-  for (const v of [0, 1000, 2000, 3000].filter(v => v < ymax)) svg += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="#c3cbd1"/><text x="${L - 8}" y="${Y(v) + 5}" text-anchor="end">${v.toLocaleString()}</text>`;
+  for (const v of [0, 1000, 2000, 3000].filter(v => v < ymax)) svg += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" class="c-grid"/><text x="${L - 8}" y="${Y(v) + 5}" text-anchor="end">${v.toLocaleString()}</text>`;
   for (let h = 6; h <= 24; h += 3) svg += `<text x="${X(h * 60)}" y="${H - 10}" text-anchor="middle">${h}시</text>`;
   if (base.length) {
-    svg += `<path d="${base.map((p, i) => `${i ? 'L' : 'M'}${X(p.m).toFixed(1)},${Y(p.hi).toFixed(1)}`).join('')}${base.slice().reverse().map(p => `L${X(p.m).toFixed(1)},${Y(p.lo).toFixed(1)}`).join('')}Z" fill="#c9d6e8"/>`;
-    svg += `<path d="${path(base)}" fill="none" stroke="#6f86a6" stroke-width="2"/>`;
+    svg += `<path d="${base.map((p, i) => `${i ? 'L' : 'M'}${X(p.m).toFixed(1)},${Y(p.hi).toFixed(1)}`).join('')}${base.slice().reverse().map(p => `L${X(p.m).toFixed(1)},${Y(p.lo).toFixed(1)}`).join('')}Z" class="c-band"/>`;
+    svg += `<path d="${path(base)}" class="c-base"/>`;
   }
-  svg += `<line x1="${L}" x2="${W - R}" y1="${Y(OP.FULL)}" y2="${Y(OP.FULL)}" stroke="#c4161c" stroke-width="3"/><text x="${W - R}" y="${Y(OP.FULL) - 8}" text-anchor="end" style="fill:#c4161c;font-weight:600">만차 수준 ${OP.FULL.toLocaleString()}대</text>`;
-  if (fc.length > 1) svg += `<path d="${path(fc)}" fill="none" stroke="#0a47a3" stroke-width="4" stroke-dasharray="9 6"/>`;
-  if (today.length > 1) svg += `<path d="${path(today)}" fill="none" stroke="#101a26" stroke-width="4" stroke-linejoin="round"/>`;
-  for (const p of today) if (p.m >= x0) svg += `<circle cx="${X(p.m)}" cy="${Y(p.v)}" r="${p === today[today.length - 1] ? 7 : 4}" fill="#101a26" stroke="#fff" stroke-width="2"/>`;
+  svg += `<line x1="${L}" x2="${W - R}" y1="${Y(OP.FULL)}" y2="${Y(OP.FULL)}" class="c-full"/><text x="${W - R}" y="${Y(OP.FULL) - 8}" text-anchor="end" class="c-fulltxt">만차 수준 ${OP.FULL.toLocaleString()}대</text>`;
+  if (fc.length > 1) svg += `<path d="${path(fc)}" class="c-fc"/>`;
+  if (today.length > 1) svg += `<path d="${path(today)}" class="c-act"/>`;
+  for (const p of today) if (p.m >= x0) svg += `<circle cx="${X(p.m)}" cy="${Y(p.v)}" r="${p === today[today.length - 1] ? 7 : 4}" class="c-dot"/>`;
   if (!today.length) svg += `<text x="${W / 2}" y="${T + 16}" text-anchor="middle">오늘 실측 기록이 아직 없습니다</text>`;
   $('chart').innerHTML = svg;
 
