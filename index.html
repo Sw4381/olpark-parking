@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/style.css?v=4">
 </head>
 <body>
 <div class="wrap">
@@ -27,27 +27,32 @@
       </div>
       <h1 class="verdict" id="verdict">주차 현황을 불러오는 중입니다</h1>
       <p id="today"></p>
+      <dl class="facts" id="facts"></dl>
       <p class="stamp" id="stamp"></p>
     </div>
 
     <section>
       <h2>오늘 하루</h2>
-      <p class="sub" id="bandSub">06시부터 24시까지, 한 칸이 30분입니다.</p>
-      <div class="band" id="band"></div>
-      <div class="hours" aria-hidden="true"><span>06시</span><span>09시</span><span>12시</span><span>15시</span><span>18시</span><span>21시</span></div>
-      <ul class="legend">
-        <li><b style="background:var(--free)"></b>여유</li>
-        <li><b style="background:var(--lane)"></b>다소 혼잡 50%~</li>
-        <li><b style="background:var(--busy)"></b>혼잡 70%~</li>
-        <li><b style="background:var(--full)"></b>만차 90%~</li>
-        <li id="legendFc" hidden><b style="background:var(--ink-soft);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.6) 0 3px,transparent 3px 6px)"></b>빗금은 예상</li>
-      </ul>
+      <p class="sub" id="bandSub">막대가 높을수록 붐빕니다. 06시부터 24시까지 한 칸이 30분입니다.</p>
+      <div class="card">
+        <div class="band" id="band"></div>
+        <div class="hours" aria-hidden="true"><span>06시</span><span>09시</span><span>12시</span><span>15시</span><span>18시</span><span>21시</span></div>
+        <ul class="legend">
+          <li><b style="background:var(--free)"></b>여유</li>
+          <li><b style="background:var(--mild)"></b>다소 혼잡 50%~</li>
+          <li><b style="background:var(--busy)"></b>혼잡 70%~</li>
+          <li><b style="background:var(--full)"></b>만차 90%~</li>
+          <li id="legendFc" hidden><b style="background:color-mix(in srgb,var(--busy) 36%,#fff);box-shadow:inset 0 3px 0 var(--busy)"></b>연한 막대는 예상</li>
+          <li id="legendShow" hidden><b class="tri"></b>공연 시작</li>
+        </ul>
+      </div>
     </section>
 
     <section id="plan">
       <h2>언제 오시나요</h2>
       <p class="sub">날짜를 고르면 그날 주차장이 언제쯤 차는지 알려 드립니다.</p>
       <div class="dates" id="dates" role="group" aria-label="방문 날짜"></div>
+      <ul class="legend" style="margin:0 0 12px"><li><b style="background:var(--full)"></b>만차 수준이 잦은 날</li><li><b style="background:var(--busy)"></b>가끔 찬 날</li><li><b style="background:var(--free)"></b>자리가 남던 날</li></ul>
       <div class="daypanel" id="day" aria-live="polite"></div>
     </section>
 
@@ -72,7 +77,7 @@
   </footer>
 </div>
 
-<script src="assets/common.js"></script>
+<script src="assets/common.js?v=4"></script>
 <script>
 (async () => {
   const $ = id => document.getElementById(id);
@@ -97,7 +102,13 @@
     $('verdict').textContent = cross ? `오늘은 ${OP.hmText(cross.t)}쯤 만차 수준이 예상됩니다`
       : lv === 3 ? '지금 주차장이 거의 다 찼습니다' : `지금 주차장은 ${pct}% 찼습니다`;
     const off = OP.offset();
-    $('stamp').textContent = `약 ${n.toLocaleString()}대 주차 중, 수용 ${OP.CAPACITY.toLocaleString()}대. ${live.live ? '방금' : live.at} 확인한 값입니다.`
+    const facts = [`<div><dt>지금 주차</dt><dd>${n.toLocaleString()}대<small>수용의 ${pct}%</small></dd></div>`];
+    if (nc) {
+      facts.push(`<div><dt>앞으로 정점</dt><dd>${OP.hmText(nc.peak.t)}<small>예상 ${nc.peak.pct}%</small></dd></div>`);
+      facts.push(`<div><dt>만차 예상</dt><dd>${lv === 3 ? '지금' : nc.cross ? OP.hmText(nc.cross.t) + '쯤' : '없음'}<small>${lv === 3 || nc.cross ? '수용의 90% 이상' : '자리 남음'}</small></dd></div>`);
+    }
+    $('facts').innerHTML = facts.join('');
+    $('stamp').textContent = `${live.live ? '방금' : live.at} 확인한 값입니다.`
       + (off ? ` 실시간 표시값 ${live.v.toLocaleString()}대에서 출차 기록이 없는 차량 추정분 ${off.toLocaleString()}대를 뺐습니다.` : '');
   } else {
     $('verdict').textContent = '주차 현황을 불러오지 못했습니다';
@@ -112,6 +123,7 @@
   const showMins = todayShows.flatMap(e => OP.showTimes(e.time_text));
   OP.renderBand($('band'), { actual, forecast: OP.forecastSlots(fcToday), nowMin: now.min, showMins: todayShows.length === 1 ? showMins : [] });
   if (fcToday) $('legendFc').hidden = false;
+  if (todayShows.length === 1 && showMins.length) $('legendShow').hidden = false;
   if (!actual.some(v => v != null) && !fcToday) $('bandSub').textContent += ' 오늘 기록이 아직 없습니다.';
 
   // 날짜별 안내
@@ -124,19 +136,25 @@
     const day = date === now.date ? fcToday : days[date], adv = day && day.advice;
     if (adv) {
       const cond = `2025년에 같은 조건(${condText(day.key)})이던 ${adv.n_days}일`;
-      const band = '<div class="band" style="margin-top:12px" data-band></div>'
-        + (day.nowcast ? '<p class="note">지난 시간은 실측, 빗금은 지금 실측을 반영해 고친 예상입니다.</p>' : '<p class="note">빗금은 2025년 같은 조건인 날의 평균입니다.</p>');
+      const band = '<div class="band small" data-band></div><div class="hours" aria-hidden="true"><span>06시</span><span>09시</span><span>12시</span><span>15시</span><span>18시</span><span>21시</span></div>'
+        + (day.nowcast ? '<p class="note">진한 막대는 오늘 실측, 연한 막대는 지금 실측을 반영해 고친 예상입니다.</p>' : '<p class="note">2025년 같은 조건인 날의 평균입니다.</p>');
+      const fact = (k, v, small, l) => `<div ${l ? `data-l="${l}"` : ''}><dt>${k}</dt><dd>${v}<small>${small}</small></dd></div>`;
+      const share = fact('작년 같은 조건', `${adv.n_days}일 중 ${adv.full_days}일`, '만차 수준에 이름');
       if (adv.full_from) {
         const c = adv.cross;
         return `<div class="advice"><strong>차로 오신다면 ${OP.hmText(adv.arrive_by)} 전에 들어오세요</strong>
-          <p>${cond} 가운데 ${adv.full_days}일이 만차 수준(수용의 90%)에 이르렀습니다. 그 시각은 주로 ${OP.hmText(c.q25)}에서 ${OP.hmText(c.q75)} 사이였습니다. 그 뒤에 출발하신다면 대중교통을 권합니다. ${TRANSIT}</p></div>` + band;
+          <dl class="facts light">${fact('주로 차는 시각', `${c.q25}~${c.q75}`, '만차 수준 도달')}${share}</dl>
+          <p>${cond} 가운데 ${adv.full_days}일이 만차 수준(수용의 90%)에 이르렀습니다. ${TRANSIT}</p></div>` + band;
       }
-      if (adv.full_days > 0) {
+      const peak = fact('가장 붐빌 때', OP.hmText(adv.peak_time), `평균 ${adv.peak_pct}%`);
+      if (adv.full_days / adv.n_days >= 0.1) {
         return `<div class="advice"><strong>대체로 자리가 있지만 찰 때도 있었습니다</strong>
-          <p>${cond} 가운데 ${adv.full_days}일이 만차 수준에 이르렀습니다. 가장 붐비는 때는 ${OP.hmText(adv.peak_time)}쯤이고 평균 이용률은 ${adv.peak_pct}%입니다.</p></div>` + band;
+          <dl class="facts light">${peak}${share}</dl>
+          <p>${cond} 가운데 ${adv.full_days}일이 만차 수준(수용의 90%)에 이르렀습니다.</p></div>` + band;
       }
       return `<div class="advice"><strong>하루 종일 자리가 남을 것으로 보입니다</strong>
-        <p>${cond} 가운데 만차 수준에 이른 날은 없었습니다. 가장 붐비는 때는 ${OP.hmText(adv.peak_time)}쯤이고 평균 이용률은 ${adv.peak_pct}%입니다.</p></div>` + band;
+        <dl class="facts light">${peak}${share}</dl>
+        <p>${cond} 가운데 만차 수준에 이른 날은 ${adv.full_days ? adv.full_days + '일뿐이었습니다' : '없었습니다'}.</p></div>` + band;
     }
     // 예보가 없으면 2025년 만차 기록을 그대로 보여 준다.
     const dw = dowOf(date), season = SEASON(+date.slice(5, 7));
@@ -162,9 +180,10 @@
   for (let i = 0; i < 14; i++) strip.push(OP.addDays(now.date, i));
   const DOWS = ['일', '월', '화', '수', '목', '금', '토'];
   let picked = now.date;
+  const dayLevel = d => { const a = days[d] && days[d].advice; return !a ? '' : `data-l="${a.full_from ? 3 : a.full_days / a.n_days >= 0.1 ? 2 : 0}"`; };
   const renderDay = () => {
     $('dates').innerHTML = strip.map(d => `<button type="button" aria-pressed="${d === picked}" data-d="${d}" class="${dowOf(d) % 6 ? '' : 'we'}" aria-label="${OP.shortDate(d)}">
-      <span>${d === now.date ? '오늘' : DOWS[dowOf(d)]}</span><b>${+d.slice(8, 10)}</b><i class="${onDate(d).length ? 'has' : ''}"></i></button>`).join('');
+      <span>${d === now.date ? '오늘' : DOWS[dowOf(d)]}</span><b>${+d.slice(8, 10)}</b><em>${onDate(d).length ? '공연' : ''}</em><u ${dayLevel(d)}></u></button>`).join('');
     const shows = onDate(picked);
     $('day').innerHTML = `<h3>${OP.shortDate(picked)}</h3>` + adviceHTML(picked)
       + (shows.length ? `<ul class="dayshows">${shows.map(e => `<li><b>${OP.esc(e.venue)}</b> ${OP.esc(e.title)}<small>${OP.esc(e.time_text)}</small></li>`).join('')}</ul>`

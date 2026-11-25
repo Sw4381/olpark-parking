@@ -83,7 +83,8 @@ const OP = (() => {
       const v = a ?? f, cls = [a == null && f != null ? 'fc' : '', i === nowI ? 'now' : '', showI.has(i) ? 'show' : ''].filter(Boolean).join(' ');
       const hm = `${String(Math.floor((SLOT0 + i * 30) / 60)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`;
       const label = v == null ? `${hm} 기록 없음` : `${hm} ${a == null ? '예상 ' : ''}${v}% ${LEVELS[level(v)]}`;
-      html += `<i ${v == null ? '' : `data-l="${level(v)}"`} class="${cls}" title="${label}"></i>`;
+      const h = v == null ? 0 : Math.max(3, Math.min(v, 130) / 130 * 100);
+      html += `<i ${v == null ? '' : `data-l="${level(v)}"`} class="${cls}" style="--h:${h.toFixed(1)}" title="${label}"></i>`;
     }
     el.innerHTML = html;
     el.setAttribute('role', 'img');
