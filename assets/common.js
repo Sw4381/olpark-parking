@@ -154,8 +154,44 @@ const OP = (() => {
     });
   });
 
+  // 숫자가 올라가며 바뀌는 표시
+  const countTo = (el, to, ms = 900) => {
+    const from = +el.dataset.v || 0; el.dataset.v = to;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || from === to) { el.textContent = to.toLocaleString(); return; }
+    const t0 = performance.now();
+    const step = t => {
+      const k = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = Math.round(from + (to - from) * e).toLocaleString();
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    setTimeout(() => { el.textContent = to.toLocaleString(); }, ms + 200);  // 탭이 가려져 있어도 끝값은 맞춘다
+  };
+
+  // 요일 x 시각 히트맵. 2025년 요일별 평균 패턴(06~24시)
+  const renderHeat = (el, model, today) => {
+    const names = ['월', '화', '수', '목', '금', '토', '일'], first = model.slots - SLOTS;
+    let html = '<div class="heat-hours"><span></span>' + [6, 9, 12, 15, 18, 21].map(h => `<span>${h}시</span>`).join('') + '</div>', best = null, calm = null;
+    for (let d = 0; d < 7; d++) {
+      const p = model.profiles[String(d)]; if (!p) continue;
+      html += `<div class="heat-row${d === today ? ' today' : ''}"><b>${names[d]}</b>`;
+      for (let i = 0; i < SLOTS; i++) {
+        const pct = Math.round(p.mean[first + i] / CAPACITY * 100), hm = `${String(Math.floor((SLOT0 + i * 30) / 60)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`;
+        if (!best || pct > best.pct) best = { d, hm, pct };
+        if (i >= 8 && i <= 28 && (!calm || pct < calm.pct)) calm = { d, hm, pct };
+        html += `<i data-l="${level(pct)}" style="--o:${(0.28 + Math.min(pct, 100) / 100 * 0.72).toFixed(2)}" title="${names[d]}요일 ${hm} 평균 ${pct}% ${LEVELS[level(pct)]}"></i>`;
+      }
+      html += '</div>';
+    }
+    el.innerHTML = html;
+    const out = el.parentNode.querySelector('.readout');
+    const pick = ev => { const b = ev.target.closest('i'); if (!b) return; el.querySelectorAll('.sel').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); if (out) out.textContent = b.title; };
+    el.onclick = pick; el.onpointerover = pick;
+    return { best: best && { ...best, name: names[best.d] }, calm: calm && { ...calm, name: names[calm.d] } };
+  };
+
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   return { CAPACITY, FULL, setOffset, offset, core, nowcast, LEVELS, level, pctOf, kstParts, kstDate, shortDate, addDays, hmText, hmToMin, getJSON, getCSV,
-    loadLog, loadLive, daySlots, forecastSlots, renderBand, showTimes, esc };
+    loadLog, loadLive, countTo, renderHeat, daySlots, forecastSlots, renderBand, showTimes, esc };
 })();

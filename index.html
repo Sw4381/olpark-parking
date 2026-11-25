@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script>try{var t=localStorage.getItem('op-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t}catch(e){}</script>
-<link rel="stylesheet" href="assets/style.css?v=7">
+<link rel="stylesheet" href="assets/style.css?v=10">
 </head>
 <body>
 <div class="wrap">
@@ -22,10 +22,10 @@
     <div class="hero" id="hero" aria-live="polite">
       <div class="gauge" aria-hidden="true">
         <svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52"/><circle class="val" id="ring" cx="60" cy="60" r="52"/></svg>
-        <div class="gauge-num"><b id="gPct">–</b><small>이용률</small></div>
+        <div class="gauge-num"><b id="gPct">0</b><small>이용률</small></div>
       </div>
       <div>
-        <span class="chip" id="chip">확인 중</span>
+        <span class="chip" id="chip">확인 중</span><span class="livebadge" id="liveBadge" hidden><i></i>실시간</span>
         <h1 class="verdict" id="verdict">주차 현황을 불러오는 중입니다</h1>
         <p id="today"></p>
       </div>
@@ -34,7 +34,7 @@
     </div>
 
     <section id="todaysec">
-      <h2>오늘 하루</h2>
+      <h2 data-i="clock">오늘 하루</h2>
       <p class="sub" id="bandSub">막대가 높을수록 붐빕니다. 06시부터 24시까지 한 칸이 30분입니다.</p>
       <div class="card">
         <div class="band" id="band"></div>
@@ -52,7 +52,7 @@
     </section>
 
     <section id="plan">
-      <h2>언제 오시나요</h2>
+      <h2 data-i="cal">언제 오시나요</h2>
       <p class="sub">날짜를 고르면 그날 주차장이 언제쯤 차는지 알려 드립니다.</p>
       <div class="dates" id="dates" role="group" aria-label="방문 날짜"></div>
       <ul class="legend" style="margin:0 0 12px"><li><b style="background:var(--full)"></b>만차 수준이 잦은 날</li><li><b style="background:var(--busy)"></b>가끔 찬 날</li><li><b style="background:var(--free)"></b>자리가 남던 날</li></ul>
@@ -60,15 +60,30 @@
     </section>
 
     <section id="alt">
-      <h2>자리가 없다면</h2>
+      <h2 data-i="route">자리가 없다면</h2>
       <p class="sub" id="altSub">공원 주차장이 찼을 때 갈 수 있는 곳입니다.</p>
       <ul class="alts" id="alts"></ul>
     </section>
 
+    <section id="weeksec">
+      <h2 data-i="grid">요일별로 보면</h2>
+      <p class="sub" id="weekSub">2025년 요일별 평균입니다. 색이 진할수록 붐빕니다.</p>
+      <div class="card">
+        <div class="heat" id="heat"></div>
+        <p class="readout" aria-live="polite"></p>
+      </div>
+    </section>
+
     <section id="showsec">
-      <h2>공연으로 찾기</h2>
+      <h2 data-i="ticket">공연으로 찾기</h2>
       <p class="sub">공연을 누르면 그 날짜의 안내로 이동합니다.</p>
       <ul class="shows" id="shows"><li class="detail" style="padding-top:14px">공연 일정을 불러오는 중입니다.</li></ul>
+    </section>
+
+    <section id="statsec">
+      <h2 data-i="data">이 예보를 만든 데이터</h2>
+      <p class="sub">한국체육산업개발(주)가 개방한 공공데이터로 만들고, 보지 않은 기간으로 검증했습니다.</p>
+      <dl class="stats" id="stats"></dl>
     </section>
   </main>
 
@@ -80,7 +95,7 @@
   </footer>
 </div>
 
-<script src="assets/common.js?v=7"></script>
+<script src="assets/common.js?v=10"></script>
 <script>
 (async () => {
   const $ = id => document.getElementById(id);
@@ -91,16 +106,23 @@
   const days = (forecast && forecast.days) || {};
   const onDate = d => events.filter(e => e.begin <= d && d <= e.end);
 
-  // 전광판
-  const live = await OP.loadLive(log);
+  // 지금 상태: 1분마다 다시 확인한다
   const todayShows = onDate(now.date);
-  let fcToday = days[now.date];
-  if (live) {
+  const fcBase = days[now.date];
+  let fcToday = fcBase;
+  const paint = live => {
+    const t = OP.kstParts();
+    if (!live) {
+      $('verdict').textContent = '주차 현황을 불러오지 못했습니다';
+      $('stamp').textContent = '잠시 뒤 새로 고쳐 주세요.';
+      return t;
+    }
     const n = OP.core(live.v), pct = OP.pctOf(n), lv = OP.level(pct);
     // 수집 기록의 값이면 그 시각 기준으로 보정한다.
-    const nc = OP.nowcast(model, fcToday, n, live.live ? now.min : OP.hmToMin(live.at.slice(-5)));
-    if (nc && (live.live || live.at.slice(0, 5) === now.date.slice(5))) fcToday = { ...fcToday, slots: nc.slots, nowcast: nc };
-    $('hero').dataset.l = lv; $('chip').textContent = OP.LEVELS[lv]; $('gPct').textContent = pct;
+    const nc = OP.nowcast(model, fcBase, n, live.live ? t.min : OP.hmToMin(live.at.slice(-5)));
+    fcToday = nc && (live.live || live.at.slice(0, 5) === t.date.slice(5)) ? { ...fcBase, slots: nc.slots, nowcast: nc } : fcBase;
+    $('hero').dataset.l = lv; $('chip').textContent = OP.LEVELS[lv]; OP.countTo($('gPct'), pct);
+    $('liveBadge').hidden = !live.live;
     requestAnimationFrame(() => { $('ring').style.strokeDashoffset = 326.7 * (1 - Math.min(pct, 100) / 100); });
     const cross = nc && lv < 3 && nc.cross;
     $('verdict').textContent = cross ? `오늘은 ${OP.hmText(cross.t)}쯤 만차 수준이 예상됩니다`
@@ -112,20 +134,21 @@
       facts.push(`<div><dt>만차 예상</dt><dd>${lv === 3 ? '지금' : nc.cross ? nc.cross.t : '없음'}<small>${lv === 3 || nc.cross ? '수용의 90% 이상' : '자리 남음'}</small></dd></div>`);
     }
     $('facts').innerHTML = facts.join('');
-    $('stamp').textContent = `${live.live ? '방금' : live.at} 확인한 값입니다.`
+    $('stamp').textContent = `${live.live ? t.hm + '에' : live.at} 확인한 값입니다.`
       + (off ? ` 실시간 표시값 ${live.v.toLocaleString()}대에서 출차 기록이 없는 차량 추정분 ${off.toLocaleString()}대를 뺐습니다.` : '');
-  } else {
-    $('verdict').textContent = '주차 현황을 불러오지 못했습니다';
-    $('stamp').textContent = '잠시 뒤 새로 고쳐 주세요.';
-  }
+    return t;
+  };
+  paint(await OP.loadLive(log));
   $('today').textContent = todayShows.length
     ? `오늘 공연: ${todayShows.map(e => `${e.venue} ${e.title}`).join(', ')}`
     : (events.length ? '오늘은 등록된 공연이 없습니다.' : '');
 
-  // 오늘 하루 띠
+  // 오늘 하루 그래프
   const actual = OP.daySlots(log, now.date);
   const showMins = todayShows.flatMap(e => OP.showTimes(e.time_text));
-  OP.renderBand($('band'), { actual, forecast: OP.forecastSlots(fcToday), nowMin: now.min, showMins: todayShows.length === 1 ? showMins : [] });
+  const drawBand = t => OP.renderBand($('band'), { actual, forecast: OP.forecastSlots(fcToday), nowMin: t.min, showMins: todayShows.length === 1 ? showMins : [] });
+  drawBand(now);
+  setInterval(async () => { if (document.visibilityState === 'visible') drawBand(paint(await OP.loadLive(log))); }, 60000);
   if (fcToday) $('legendFc').hidden = false;
   if (todayShows.length === 1 && showMins.length) $('legendShow').hidden = false;
   if (!actual.some(v => v != null) && !fcToday) $('bandSub').textContent += ' 오늘 기록이 아직 없습니다.';
@@ -217,7 +240,7 @@
       <a href="https://map.kakao.com/link/search/${encodeURIComponent(l.name)}" rel="noopener">지도에서 보기</a></p>
       <div class="meter" aria-hidden="true"><span data-l="${lv}" style="width:${Math.min(100, Math.round(l.now / l.capacity * 100))}%"></span></div></li>`);
   }
-  alts.push(`<li><b>대중교통</b><p>${TRANSIT} 주말 공연일에는 가장 확실한 방법입니다.</p></li>`);
+  alts.push(`<li><b>대중교통</b><p class="lines"><span><i class="ln l5">5</i><i class="ln l9">9</i>올림픽공원역</span><span><i class="ln l8">8</i>몽촌토성역</span></p><p>주말 공연일에는 가장 확실한 방법입니다.</p></li>`);
   $('alts').innerHTML = alts.join('');
 
   // 공연 목록: 누르면 그 공연의 가장 가까운 날짜로 이동한다.
@@ -237,6 +260,20 @@
       renderDay();
       $('plan').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     });
+  }
+
+  if (model) {
+    const todayKd = (new Date(now.date + 'T12:00:00+09:00').getUTCDay() + 6) % 7;
+    const h = OP.renderHeat($('heat'), model, todayKd);
+    if (h.best && h.calm) $('weekSub').textContent = `2025년 요일별 평균입니다. 가장 붐비는 때는 ${h.best.name}요일 ${h.best.hm}쯤(평균 ${h.best.pct}%), 낮 시간에 가장 여유로운 때는 ${h.calm.name}요일 ${h.calm.hm}쯤(평균 ${h.calm.pct}%)입니다.`;
+    const v = model.validation, ew = v['당일 보정']['조기경보'], st = [];
+    if (model.records) st.push([Math.round(model.records / 10000), '만 건', '2025년 입출차 기록']);
+    st.push([model.days, '일', '예보 패턴을 만든 날']);
+    st.push([v['검증 일수'], '일', '보지 않고 검증한 기간(9~11월)']);
+    st.push([ew['도달 전에 경보한 날'], `/ ${ew['만차 수준에 이른 날']}일`, '만차 수준을 도달 전에 알린 날']);
+    st.push([ew['앞선 시간(시간) 중앙값'], '시간', '경보가 앞선 시간(중앙값)']);
+    $('stats').innerHTML = st.map(([n, u, k]) => `<div><dd><b data-n="${n}">0</b><span>${u}</span></dd><dt>${k}</dt></div>`).join('');
+    $('stats').querySelectorAll('b').forEach(b => Number.isInteger(+b.dataset.n) ? OP.countTo(b, +b.dataset.n, 1200) : (b.textContent = b.dataset.n));
   }
 
   const a = forecast && forecast.accuracy;

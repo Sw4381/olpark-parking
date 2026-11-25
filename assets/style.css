@@ -267,8 +267,8 @@ td.wrapcell { white-space: normal; min-width: 180px; }
   .dash {
     display: grid; gap: 28px; align-items: start;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas: "hero hero" "today plan" "alt plan" "shows shows";
-    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas: "hero hero" "today plan" "alt plan" "week week" "shows shows" "stats stats";
+    grid-template-rows: auto auto 1fr auto auto auto;
   }
   .dash > section { margin-top: 0; }
   .dash > .hero { grid-area: hero; }
@@ -276,6 +276,11 @@ td.wrapcell { white-space: normal; min-width: 180px; }
   #plan { grid-area: plan; }
   #alt { grid-area: alt; }
   #showsec { grid-area: shows; }
+  #weeksec { grid-area: week; }
+  #statsec { grid-area: stats; }
+  .stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .valviz { grid-template-columns: 1fr 1fr; }
+  .heat i { height: 26px; }
   .hero { grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.1fr); padding: 30px 32px 22px; gap: 16px 28px; }
   .hero .facts { grid-column: 3; gap: 12px; }
   .hero .facts div { padding: 16px; }
@@ -293,3 +298,74 @@ td.wrapcell { white-space: normal; min-width: 180px; }
   .cell .v { font-size: 26px; }
   .two { grid-template-columns: 1fr 1fr; align-items: start; }
 }
+
+/* 화면 위쪽의 은은한 빛 */
+body::before { content: ""; position: fixed; inset: 0 0 auto 0; height: 420px; z-index: -1; pointer-events: none;
+  background: radial-gradient(60% 100% at 15% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%), radial-gradient(50% 90% at 90% 0%, color-mix(in srgb, var(--free) 12%, transparent), transparent 70%); }
+
+/* 구획 제목 아이콘 */
+h2[data-i] { display: flex; align-items: center; gap: 8px; }
+h2[data-i]::before { content: ""; width: 30px; height: 30px; flex: none; border-radius: 10px; background: var(--accent-soft); }
+h2[data-i]::after { content: ""; position: absolute; width: 30px; height: 30px; background: var(--accent); -webkit-mask: var(--i) center / 17px no-repeat; mask: var(--i) center / 17px no-repeat; }
+h2[data-i] { position: relative; }
+h2[data-i="clock"] { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E"); }
+h2[data-i="cal"] { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='3'/%3E%3Cpath d='M8 3v4M16 3v4M3 10h18'/%3E%3C/svg%3E"); }
+h2[data-i="route"] { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='6' cy='18' r='2.5'/%3E%3Ccircle cx='18' cy='6' r='2.5'/%3E%3Cpath d='M8.5 18H14a4 4 0 0 0 0-8h-4a4 4 0 0 1 0-8h5'/%3E%3C/svg%3E"); }
+h2[data-i="ticket"] { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 9V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v3a3 3 0 0 0 0 6v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a3 3 0 0 0 0-6z'/%3E%3Cpath d='M14 5v14' stroke-dasharray='2 3'/%3E%3C/svg%3E"); }
+h2[data-i="grid"] { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7' rx='1.5'/%3E%3Crect x='14' y='3' width='7' height='7' rx='1.5'/%3E%3Crect x='3' y='14' width='7' height='7' rx='1.5'/%3E%3Crect x='14' y='14' width='7' height='7' rx='1.5'/%3E%3C/svg%3E"); }
+h2[data-i="data"] { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20V10M10 20V4M16 20v-7M22 20H2'/%3E%3C/svg%3E"); }
+h2[data-i] + .sub { margin-top: 6px; }
+
+/* 실시간 표시 */
+.livebadge { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.8); }
+.livebadge[hidden] { display: none; }
+.livebadge i { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 0 rgba(74,222,128,.7); }
+@media (prefers-reduced-motion: no-preference) {
+  .livebadge i { animation: ping 1.8s ease-out infinite; }
+  @keyframes ping { to { box-shadow: 0 0 0 9px rgba(74,222,128,0); } }
+}
+
+/* 요일 x 시각 히트맵 */
+.heat { display: grid; gap: 4px; }
+.heat-hours, .heat-row { display: grid; grid-template-columns: 26px repeat(36, minmax(0, 1fr)); gap: 2px; align-items: center; }
+.heat-hours { font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.heat-hours span:not(:first-child) { grid-column: span 6; }
+.heat-row b { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+.heat-row.today b { color: var(--accent); font-weight: 800; }
+.heat-row:nth-child(n+7) b { color: var(--full); }
+.heat i { --c: var(--line); display: block; height: 22px; border-radius: 4px; background: color-mix(in srgb, var(--c) calc(var(--o) * 100%), var(--surface)); cursor: pointer; transition: transform .12s; }
+.heat i[data-l="0"] { --c: var(--free); }
+.heat i[data-l="1"] { --c: var(--mild); }
+.heat i[data-l="2"] { --c: var(--busy); }
+.heat i[data-l="3"] { --c: var(--full); }
+.heat i:hover, .heat i.sel { transform: scale(1.25); box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--ink); position: relative; z-index: 1; }
+
+/* 지하철 노선 배지 */
+.alts .lines { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--ink); font-weight: 600; }
+.alts .lines span { display: inline-flex; align-items: center; gap: 4px; }
+.ln { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-style: normal; font-size: 12.5px; font-weight: 800; color: #fff; }
+.ln.l5 { background: #8b50a4; } .ln.l9 { background: #a8925a; } .ln.l8 { background: #e6186c; }
+
+/* 데이터 요약 띠 */
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.stats div { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+.stats dd { margin: 0; display: flex; align-items: baseline; gap: 4px; }
+.stats dd b { font-size: clamp(28px, 7vw, 38px); font-weight: 800; letter-spacing: -.04em; line-height: 1.1; font-variant-numeric: tabular-nums; background: linear-gradient(120deg, var(--accent), color-mix(in srgb, var(--accent) 45%, var(--free))); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.stats dd span { font-size: 14px; font-weight: 700; color: var(--ink-soft); }
+.stats dt { margin-top: 6px; font-size: 13.5px; color: var(--ink-soft); line-height: 1.4; }
+
+/* 운영자: 검증 결과 그림 */
+.valviz { display: grid; gap: 12px; margin-bottom: 12px; }
+.valviz h3 { margin: 0 0 14px; font-size: 15px; font-weight: 700; }
+.hbar { display: grid; grid-template-columns: 76px minmax(0, 1fr) 62px; gap: 10px; align-items: center; font-size: 14px; margin-top: 10px; }
+.hbar span { color: var(--ink-soft); }
+.hbar div { height: 14px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.hbar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 55%, transparent), var(--accent)); }
+.hbar b { text-align: right; font-variant-numeric: tabular-nums; }
+.dotcap { margin: 12px 0 6px; font-size: 13.5px; color: var(--ink-soft); }
+.dotcap:first-of-type { margin-top: 0; }
+.dots { display: flex; flex-wrap: wrap; gap: 5px; }
+.dots i { width: 14px; height: 14px; border-radius: 50%; background: var(--line); }
+.dots .hit { background: var(--free); } .dots .miss { background: var(--full); } .dots .false { background: var(--mild); }
+
+@media (min-width: 960px) { .stats { grid-template-columns: repeat(5, minmax(0, 1fr)); } .heat i { height: 26px; } }

@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script>try{var t=localStorage.getItem('op-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t}catch(e){}</script>
-<link rel="stylesheet" href="assets/style.css?v=7">
+<link rel="stylesheet" href="assets/style.css?v=10">
 </head>
 <body>
 <div class="wrap">
@@ -20,7 +20,7 @@
   <main>
     <div class="hero ops" id="status" data-s="none" aria-live="polite">
       <div>
-        <span class="chip" id="chip">확인 중</span>
+        <span class="chip" id="chip">확인 중</span><span class="livebadge" id="liveBadge" hidden><i></i>실시간</span>
         <h1 class="verdict" id="headline">운영 현황을 불러오는 중입니다</h1>
         <p id="stamp"></p>
       </div>
@@ -29,7 +29,7 @@
     <div class="grid" id="cells"></div>
 
     <section>
-      <h2>오늘 주차 대수</h2>
+      <h2 data-i="clock">오늘 주차 대수</h2>
       <p class="sub">동2·남2·북2문 기준 주차 대수입니다. 만차 수준은 수용 2,200대의 90%입니다.</p>
       <div class="panel"><svg class="chart" id="chart" viewBox="0 0 900 380" role="img" aria-label="오늘 주차 대수 추이"></svg>
         <ul class="legend">
@@ -41,26 +41,27 @@
     </section>
 
     <section>
-      <h2>이 경보는 얼마나 맞았나</h2>
+      <h2 data-i="data">이 경보는 얼마나 맞았나</h2>
       <p class="sub" id="valSub"></p>
+      <div class="valviz" id="valviz"></div>
       <div class="panel scroll"><table id="val"></table></div>
     </section>
 
     <div class="two">
     <section>
-      <h2>차량을 돌려보낼 수 있는 곳</h2>
+      <h2 data-i="route">차량을 돌려보낼 수 있는 곳</h2>
       <p class="sub">서울시 시영주차장 실시간 주차대수 기준, 지하철 한두 정거장 안의 공영주차장입니다.</p>
       <div class="panel scroll"><table id="nearby"></table></div>
     </section>
 
     <section>
-      <h2>오늘과 내일 공연</h2>
+      <h2 data-i="ticket">오늘과 내일 공연</h2>
       <div class="panel scroll"><table id="shows"></table></div>
     </section>
     </div>
 
     <section>
-      <h2>누리집 예상 이용률과 실측</h2>
+      <h2 data-i="grid">누리집 예상 이용률과 실측</h2>
       <p class="sub">올림픽공원 누리집 "주차장 예상 이용률 서비스"가 게시한 값과, 같은 시각 실시간 주차현황 API의 표시값을 나란히 둡니다. 이 표만 보정하지 않은 표시값 기준입니다.</p>
       <div class="panel scroll"><table id="official"></table></div>
     </section>
@@ -72,7 +73,7 @@
   </footer>
 </div>
 
-<script src="assets/common.js?v=7"></script>
+<script src="assets/common.js?v=10"></script>
 <script>
 (async () => {
   const $ = id => document.getElementById(id);
@@ -118,7 +119,7 @@
     cells.push({ k: '최근 30분 변화', v: signed(ago(30)) });
     cells.push({ k: '실시간 표시값', v: `${cur.v.toLocaleString()}대 <small>보정 -${OP.offset().toLocaleString()}대</small>` });
     $('headline').textContent = head;
-    $('chip').textContent = OP.LEVELS[lv];
+    $('chip').textContent = OP.LEVELS[lv]; $('liveBadge').hidden = !(live && live.live);
     $('status').dataset.s = lv === 3 || cells.some(x => x.c === 'alert') ? 'alert' : nc && (nc.cross || nc.z >= 1) ? 'warn' : nc ? 'ok' : 'none';
     $('stamp').textContent = `${fresh ? `${now.date} ${cur.at.slice(11, 16)}` : cur.at.slice(0, 16)} 기준. ${live && live.live ? '실시간 API 값입니다.' : '수집 기록의 마지막 값입니다.'}`;
   } else {
@@ -159,6 +160,16 @@
     const row = (name, r) => `<tr><td>${name}</td><td class="num">${Math.round(r['정점 MAE']).toLocaleString()}대</td><td class="num">${r['경보한 날'] ?? r['예보가 짚은 날']}일</td><td class="num">${r['적중']}일</td></tr>`;
     $('val').innerHTML = `<tr><th>예상 시점</th><th class="num">하루 정점 오차(평균)</th><th class="num">만차 수준으로 본 날</th><th class="num">그중 실제 ${pri['만차 수준인 날']}일과 일치</th></tr>`
       + row('전날까지(사전 예보)', pri) + row('당일 9시 실측 반영', nd['9시 실측 반영']) + row('당일 11시 실측 반영', nd['11시 실측 반영']) + row('당일 13시 실측 반영', nd['13시 실측 반영']);
+    // 그림으로: 정점 오차가 줄어드는 모습과, 날짜 하나를 점 하나로 본 경보 결과
+    const steps = [['전날까지', pri['정점 MAE']], ['9시 반영', nd['9시 실측 반영']['정점 MAE']], ['11시 반영', nd['11시 실측 반영']['정점 MAE']], ['13시 반영', nd['13시 실측 반영']['정점 MAE']]];
+    const mx = Math.max(...steps.map(x => x[1]));
+    const dots = (n, cls) => Array.from({ length: n }, () => `<i class="${cls}"></i>`).join('');
+    $('valviz').innerHTML = `<div class="panel"><h3>하루 정점 오차는 시간이 갈수록 줄어듭니다</h3>
+        ${steps.map(([k, v]) => `<div class="hbar"><span>${k}</span><div><i style="width:${(v / mx * 100).toFixed(1)}%"></i></div><b>${Math.round(v)}대</b></div>`).join('')}</div>
+      <div class="panel"><h3>검증 기간 ${val['검증 일수']}일, 하루가 점 하나입니다</h3>
+        <p class="dotcap">만차 수준에 이른 ${ew['만차 수준에 이른 날']}일</p><div class="dots">${dots(ew['도달 전에 경보한 날'], 'hit')}${dots(ew['놓친 날'], 'miss')}</div>
+        <p class="dotcap">이르지 않은 ${ew['도달하지 않은 날']}일</p><div class="dots">${dots(ew['도달하지 않은 날'] - ew['도달하지 않았는데 경보한 날'], 'calm')}${dots(ew['도달하지 않았는데 경보한 날'], 'false')}</div>
+        <ul class="legend"><li><b style="background:var(--free)"></b>도달 전에 경보</li><li><b style="background:var(--full)"></b>놓침</li><li><b style="background:var(--line)"></b>경보 없이 지나감</li><li><b style="background:var(--mild)"></b>잘못 경보</li></ul></div>`;
   } else {
     $('val').innerHTML = '<tr><td>검증 결과를 불러오지 못했습니다.</td></tr>';
   }
@@ -195,6 +206,8 @@
           <td class="num">${a ? `${ap}% (${a.v.toLocaleString()}대)` : '아직 없음'}</td><td class="num">${a ? `${ap - r.forecast_pct > 0 ? '+' : ''}${ap - r.forecast_pct}%p` : ''}</td></tr>`;
       }).join('')
     : '<tr><td>기록된 예상값이 아직 없습니다. 누리집은 주말분만 게시합니다.</td></tr>';
+  // 2분마다 새로 고쳐 최신 상태를 유지한다
+  setInterval(() => { if (document.visibilityState === 'visible') location.reload(); }, 120000);
 })();
 </script>
 </body>
