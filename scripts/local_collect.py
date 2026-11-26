@@ -11,7 +11,7 @@ from datetime import datetime
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 LOG = os.path.join(ROOT, ".git", "local_collect.log")
 LOCK = os.path.join(ROOT, ".git", "local_collect.lock")
-FILES = ["data/parking_log.csv", "data/nearby.json", "data/forecast.json", "data/official_forecast_log.csv"]
+FILES = ["data/parking_log.csv", "data/nearby.json", "data/forecast.json"]
 ENV = dict(os.environ, GIT_TERMINAL_PROMPT="0", GCM_INTERACTIVE="never", PYTHONIOENCODING="utf-8")
 NOWIN = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 PY = sys.executable.replace("pythonw.exe", "python.exe")
@@ -40,7 +40,7 @@ def main():
         if code:
             return log("collect failed: " + out)
         value = out
-        # 누리집 예상 이용률은 값이 바뀔 때만 한 줄씩 늘어난다(주말에 갱신되는지 보려고 매번 확인).
+        # 누리집 예상 이용률은 값이 바뀔 때만 한 줄씩 늘어난다. 저장소 밖에 쌓고 커밋하지 않는다.
         for script in ("scripts/fetch_nearby.py", "scripts/snapshot_official_forecast.py", "scripts/build_forecast.py"):
             c, o = run(PY, script)
             if c:

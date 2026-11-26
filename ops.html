@@ -59,12 +59,6 @@
       <div class="panel scroll"><table id="shows"></table></div>
     </section>
     </div>
-
-    <section>
-      <h2 data-i="grid">누리집 예상 이용률과 실측</h2>
-      <p class="sub">올림픽공원 누리집 "주차장 예상 이용률 서비스"가 게시한 값과, 같은 시각 실시간 주차현황 API의 표시값을 나란히 둡니다. 이 표만 보정하지 않은 표시값 기준입니다.</p>
-      <div class="panel scroll"><table id="official"></table></div>
-    </section>
   </main>
 
   <footer>
@@ -78,8 +72,8 @@
 (async () => {
   const $ = id => document.getElementById(id);
   const now = OP.kstParts();
-  const [log, eventsFile, forecast, official, nearby, model] = await Promise.all([
-    OP.loadLog(), OP.getJSON('data/events.json'), OP.getJSON('data/forecast.json'), OP.getCSV('data/official_forecast_log.csv'), OP.getJSON('data/nearby.json'), OP.getJSON('data/model.json')]);
+  const [log, eventsFile, forecast, nearby, model] = await Promise.all([
+    OP.loadLog(), OP.getJSON('data/events.json'), OP.getJSON('data/forecast.json'), OP.getJSON('data/nearby.json'), OP.getJSON('data/model.json')]);
   const liveOff = forecast && forecast.live_offset;
   OP.setOffset(liveOff && liveOff.value);
   const live = await OP.loadLive(log);
@@ -190,22 +184,6 @@
       + `<tr><th>합계</th><th class="num">${lots.reduce((s, l) => s + l.free, 0).toLocaleString()}</th><th class="num">${lots.reduce((s, l) => s + l.capacity, 0).toLocaleString()}</th><th></th><th></th></tr>`
     : '<tr><td>인근 주차장 정보를 불러오지 못했습니다.</td></tr>';
 
-  // 누리집 예상과 실측
-  const latest = new Map();
-  for (const r of official) latest.set(r.target_at_kst, r);
-  const actualAt = target => {
-    const t = OP.kstDate(target + ':00'); let best = null;
-    for (const r of log) if (Math.abs(r.t - t) <= 10 * 60000 && (!best || Math.abs(r.t - t) < Math.abs(best.t - t))) best = r;
-    return best;
-  };
-  const off = [...latest.values()].sort((a, b) => a.target_at_kst < b.target_at_kst ? -1 : 1).slice(-36);
-  $('official').innerHTML = off.length
-    ? '<tr><th>대상 시각</th><th class="num">누리집 예상</th><th class="num">실측</th><th class="num">차이</th></tr>' + off.map(r => {
-        const a = actualAt(r.target_at_kst), ap = a ? Math.round(a.v / OP.CAPACITY * 100) : null;
-        return `<tr><td>${OP.shortDate(r.target_at_kst.slice(0, 10))} ${r.target_at_kst.slice(11)}</td><td class="num">${r.forecast_pct}%</td>
-          <td class="num">${a ? `${ap}% (${a.v.toLocaleString()}대)` : '아직 없음'}</td><td class="num">${a ? `${ap - r.forecast_pct > 0 ? '+' : ''}${ap - r.forecast_pct}%p` : ''}</td></tr>`;
-      }).join('')
-    : '<tr><td>기록된 예상값이 아직 없습니다. 누리집은 주말분만 게시합니다.</td></tr>';
   // 2분마다 새로 고쳐 최신 상태를 유지한다
   setInterval(() => { if (document.visibilityState === 'visible') location.reload(); }, 120000);
 })();

@@ -2,14 +2,15 @@
 
 누리집이 주말분으로 게시하는 30분 단위 예상 이용률을 그대로 적어 두었다가,
 같은 시각의 실측 주차 대수(data/parking_log.csv)와 나중에 비교하기 위한 것이다.
-data/official_forecast_log.csv 에 (기록 시각, 대상 시각, 예상 이용률, 수용 대수)를 누적한다.
+저장소 밖(~/olpark-private/official_forecast_log.csv, OP_OFFICIAL_LOG로 변경 가능)에 (기록 시각, 대상 시각, 예상 이용률, 수용 대수)를 누적한다.
 같은 대상 시각에 같은 값이 이미 마지막으로 기록돼 있으면 다시 적지 않는다.
 """
 import csv, os, re, sys, urllib.parse, urllib.request
 from datetime import datetime, timezone, timedelta
 
 URL = "https://www.ksponco.or.kr/online/main/parking.do"
-OUT = os.path.join(os.path.dirname(__file__), "..", "data", "official_forecast_log.csv")
+# 누리집 화면의 값은 개방 데이터가 아니므로 공개 저장소에 올리지 않고 PC에만 쌓는다.
+OUT = os.environ.get("OP_OFFICIAL_LOG") or os.path.join(os.path.expanduser("~"), "olpark-private", "official_forecast_log.csv")
 KST = timezone(timedelta(hours=9))
 HEAD = ["snapshot_at_kst", "target_at_kst", "forecast_pct", "capacity"]
 
@@ -56,6 +57,7 @@ def main():
         print("official forecast unchanged:", len(found))
         return
     is_new = not os.path.exists(OUT)
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "a", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
         if is_new:
