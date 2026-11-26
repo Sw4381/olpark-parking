@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script>try{var t=localStorage.getItem('op-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t}catch(e){}</script>
-<link rel="stylesheet" href="assets/style.css?v=11">
+<link rel="stylesheet" href="assets/style.css?v=12">
 </head>
 <body>
 <div class="wrap">
@@ -20,14 +20,18 @@
 
   <main class="dash">
     <div class="hero" id="hero" aria-live="polite">
-      <div class="gauge" aria-hidden="true">
-        <svg viewBox="0 0 120 120"><circle class="track" cx="60" cy="60" r="52"/><circle class="val" id="ring" cx="60" cy="60" r="52"/></svg>
-        <div class="gauge-num"><b id="gPct">0</b><small>이용률</small></div>
-      </div>
-      <div>
-        <span class="chip" id="chip">확인 중</span><span class="livebadge" id="liveBadge" hidden><i></i>실시간</span>
+      <div class="hero-main">
+        <div class="hero-tags"><span class="chip" id="chip">확인 중</span><span class="livebadge" id="liveBadge" hidden><i></i>실시간</span></div>
         <h1 class="verdict" id="verdict">주차 현황을 불러오는 중입니다</h1>
         <p id="today"></p>
+      </div>
+      <div class="hero-now">
+        <div class="hero-num"><b id="gPct">0</b><span>%</span></div>
+        <div class="hero-side"><strong id="gFree"></strong><small>수용 2,200대 기준 이용률</small></div>
+        <div class="lotbox" aria-hidden="true">
+          <div class="lot" id="lot"></div>
+          <p class="lotcap">한 칸이 20대입니다. 테두리만 있는 칸까지 차면 만차 수준(90%)입니다.</p>
+        </div>
       </div>
       <dl class="facts" id="facts"></dl>
       <p class="stamp" id="stamp"></p>
@@ -45,7 +49,7 @@
           <li><b style="background:var(--mild)"></b>다소 혼잡 50%~</li>
           <li><b style="background:var(--busy)"></b>혼잡 70%~</li>
           <li><b style="background:var(--full)"></b>만차 90%~</li>
-          <li id="legendFc" hidden><b style="background:color-mix(in srgb,var(--busy) 30%,var(--surface));box-shadow:inset 0 0 0 1.5px var(--busy)"></b>연한 막대는 예상</li>
+          <li id="legendFc" hidden><b class="fcbox"></b>빗금 막대는 예상</li>
           <li id="legendShow" hidden><b class="tri"></b>공연 시작</li>
         </ul>
       </div>
@@ -53,9 +57,8 @@
 
     <section id="plan">
       <h2 data-i="cal">언제 오시나요</h2>
-      <p class="sub">날짜를 고르면 그날 주차장이 언제쯤 차는지 알려 드립니다.</p>
+      <p class="sub">앞으로 2주의 예보입니다. 날짜를 고르면 그날 주차장이 언제쯤 차는지 알려 드립니다.</p>
       <div class="dates" id="dates" role="group" aria-label="방문 날짜"></div>
-      <ul class="legend" style="margin:0 0 12px"><li><b style="background:var(--full)"></b>만차 수준이 잦은 날</li><li><b style="background:var(--busy)"></b>가끔 찬 날</li><li><b style="background:var(--free)"></b>자리가 남던 날</li></ul>
       <div class="daypanel" id="day" aria-live="polite"></div>
     </section>
 
@@ -77,7 +80,8 @@
     <section id="showsec">
       <h2 data-i="ticket">공연으로 찾기</h2>
       <p class="sub">공연을 누르면 그 날짜의 안내로 이동합니다.</p>
-      <ul class="shows" id="shows"><li class="detail" style="padding-top:14px">공연 일정을 불러오는 중입니다.</li></ul>
+      <ul class="shows" id="shows"><li class="detail">공연 일정을 불러오는 중입니다.</li></ul>
+      <button class="more" id="moreShows" type="button" hidden></button>
     </section>
 
     <section id="statsec">
@@ -95,7 +99,7 @@
   </footer>
 </div>
 
-<script src="assets/common.js?v=11"></script>
+<script src="assets/common.js?v=12"></script>
 <script>
 (async () => {
   const $ = id => document.getElementById(id);
@@ -107,6 +111,10 @@
   const onDate = d => events.filter(e => e.begin <= d && d <= e.end);
 
   // 지금 상태: 1분마다 다시 확인한다
+  // 위에서 본 주차장: 110칸, 한 칸이 20대. 90%를 넘는 칸은 테두리로 구분한다.
+  const STALLS = OP.CAPACITY / 20, CAPFROM = Math.round(STALLS * 0.9);
+  $('lot').innerHTML = Array.from({ length: STALLS }, (_, i) => `<i style="--n:${i}"${i >= CAPFROM ? ' class="cap"' : ''}></i>`).join('');
+  const paintLot = n => { const on = Math.min(STALLS, Math.round(n / 20)); [...$('lot').children].forEach((el, i) => el.classList.toggle('on', i < on)); };
   const todayShows = onDate(now.date);
   const fcBase = days[now.date];
   let fcToday = fcBase;
@@ -123,10 +131,12 @@
     fcToday = nc && (live.live || live.at.slice(0, 5) === t.date.slice(5)) ? { ...fcBase, slots: nc.slots, nowcast: nc } : fcBase;
     $('hero').dataset.l = lv; $('chip').textContent = OP.LEVELS[lv]; OP.countTo($('gPct'), pct);
     $('liveBadge').hidden = !live.live;
-    requestAnimationFrame(() => { $('ring').style.strokeDashoffset = 326.7 * (1 - Math.min(pct, 100) / 100); });
+    requestAnimationFrame(() => paintLot(n));
+    const left = OP.CAPACITY - n;
+    $('gFree').textContent = left > 220 ? `남은 자리 약 ${(Math.round(left / 10) * 10).toLocaleString()}대` : left > 0 ? '남은 자리가 거의 없습니다' : '수용 대수를 넘었습니다';
     const cross = nc && lv < 3 && nc.cross;
     $('verdict').textContent = cross ? `오늘은 ${OP.hmText(cross.t)}쯤 만차 수준이 예상됩니다`
-      : lv === 3 ? '지금 주차장이 거의 다 찼습니다' : `지금 주차장은 ${pct}% 찼습니다`;
+      : lv === 3 ? '지금 주차장이 거의 다 찼습니다' : nc ? '오늘은 만차 수준까지 차지 않을 것으로 보입니다' : `지금 주차장은 ${pct}% 찼습니다`;
     const off = OP.offset();
     const facts = [`<div><dt>지금 주차</dt><dd>${n.toLocaleString()}대<small>수용의 ${pct}%</small></dd></div>`];
     if (nc) {
@@ -164,7 +174,7 @@
     if (adv) {
       const cond = `2025년에 같은 조건(${condText(day.key)})이던 ${adv.n_days}일`;
       const band = '<div class="band small" data-band></div><div class="hours" aria-hidden="true"><span>06시</span><span>09시</span><span>12시</span><span>15시</span><span>18시</span><span>21시</span></div><p class="readout" aria-live="polite"></p>'
-        + (day.nowcast ? '<p class="note">진한 막대는 오늘 실측, 연한 막대는 지금 실측을 반영해 고친 예상입니다.</p>' : '<p class="note">2025년 같은 조건인 날의 평균입니다.</p>');
+        + (day.nowcast ? '<p class="note">진한 막대는 오늘 실측, 빗금 막대는 지금 실측을 반영해 고친 예상입니다.</p>' : '<p class="note">2025년 같은 조건인 날의 평균입니다.</p>');
       // 같은 조건이어도 공연마다 차이가 크다는 점을 숨기지 않는다(오늘은 실측 보정이 있으므로 생략).
       const r = adv.peak_range_pct, pc = v => v >= 100 ? '100% 이상' : v + '%';
       const spread = (!day.nowcast && r && r[1] - r[0] >= 15)
@@ -173,7 +183,7 @@
       const share = fact('작년 같은 조건', `${adv.n_days}일 중 ${adv.full_days}일`, '만차 수준에 이름');
       if (adv.full_from) {
         const c = adv.cross;
-        return `<div class="advice"><strong>차로 오신다면 ${OP.hmText(adv.arrive_by)} 전에 들어오세요</strong>
+        return `<div class="advice"><strong>차로 오신다면 <span class="nb">${OP.hmText(adv.arrive_by)} 전에</span> 들어오세요</strong>
           <dl class="facts light">${fact('주로 차는 시각', `${c.q25}~${c.q75}`, '만차 수준 도달')}${share}</dl>
           <p>${cond} 가운데 ${adv.full_days}일이 만차 수준(수용의 90%)에 이르렀습니다. ${TRANSIT}</p>${spread}</div>` + band;
       }
@@ -212,10 +222,13 @@
   const DOWS = ['일', '월', '화', '수', '목', '금', '토'];
   let picked = now.date;
   { const h = location.hash.slice(1); if (/^\d{4}-\d\d-\d\d$/.test(h) && h >= now.date && days[h]) picked = h; }
-  const dayLevel = d => { const a = days[d] && days[d].advice; return !a ? '' : `data-l="${a.full_from ? 3 : a.full_days / a.n_days >= 0.1 ? 2 : 0}"`; };
+  const lvOf = d => { const a = days[d] && days[d].advice; return !a ? null : a.full_from ? 3 : a.full_days / a.n_days >= 0.1 ? 2 : 0; };
+  const LVWORD = { 3: '만차 잦음', 2: '가끔 참', 0: '여유' };
+  const dayLevel = d => { const l = lvOf(d); return l == null ? '' : `data-l="${l}"`; };
   const renderDay = () => {
-    $('dates').innerHTML = strip.map(d => `<button type="button" aria-pressed="${d === picked}" data-d="${d}" class="${dowOf(d) % 6 ? '' : 'we'}" aria-label="${OP.shortDate(d)}">
-      <span>${d === now.date ? '오늘' : DOWS[dowOf(d)]}</span><b>${+d.slice(8, 10)}</b><em>${onDate(d).length ? '공연' : ''}</em><u ${dayLevel(d)}></u></button>`).join('');
+    $('dates').innerHTML = strip.map(d => `<button type="button" aria-pressed="${d === picked}" data-d="${d}" ${dayLevel(d)} class="${dowOf(d) % 6 ? '' : 'we'}" aria-label="${OP.shortDate(d)}${lvOf(d) == null ? '' : ', ' + LVWORD[lvOf(d)]}">
+      <span>${d === now.date ? '오늘' : DOWS[dowOf(d)]}</span><b>${+d.slice(8, 10)}</b><u>${lvOf(d) == null ? '' : LVWORD[lvOf(d)]}</u><em>${onDate(d).length ? '공연' : ''}</em></button>`).join('');
+    if (lvOf(picked) == null) delete $('day').dataset.l; else $('day').dataset.l = lvOf(picked);
     const shows = onDate(picked);
     $('day').innerHTML = `<h3>${OP.shortDate(picked)}</h3>` + adviceHTML(picked)
       + (shows.length ? `<ul class="dayshows">${shows.map(e => `<li><b>${OP.esc(e.venue)}</b> ${OP.esc(e.title)}<small>${OP.esc(e.time_text)}</small></li>`).join('')}</ul>`
@@ -253,11 +266,21 @@
   const range = e => e.begin === e.end ? OP.shortDate(e.begin) : `${OP.shortDate(e.begin)} ~ ${OP.shortDate(e.end)}`;
   const list = $('shows');
   if (!events.length) {
-    list.innerHTML = '<li class="detail" style="padding-top:14px">공연 일정을 불러오지 못했습니다. 잠시 뒤 새로 고쳐 주세요.</li>';
+    list.innerHTML = '<li class="detail">공연 일정을 불러오지 못했습니다. 잠시 뒤 새로 고쳐 주세요.</li>';
   } else {
-    list.innerHTML = events.map((e, i) => `<li><button type="button" data-i="${i}">
-        <span class="when">${range(e)}</span><span class="title">${OP.esc(e.title)}</span><span class="where">${OP.esc(e.venue)}</span>
-      </button></li>`).join('');
+    const BIG = new Set(['01', '02', '03']), FIRST = 8;
+    const startOf = e => e.begin < now.date ? now.date : e.begin;
+    list.innerHTML = events.map((e, i) => {
+      const d = startOf(e), l = lvOf(d);
+      return `<li${i >= FIRST ? ' hidden' : ''}><button type="button" data-i="${i}">
+        <span class="d"><small>${+d.slice(5, 7)}월</small><b>${+d.slice(8, 10)}</b><small>${DOWS[dowOf(d)]}</small></span>
+        <span class="title">${OP.esc(e.title)}</span>
+        <span class="meta"><span class="where${BIG.has(e.venue_code) ? ' big' : ''}">${OP.esc(e.venue)}</span>${e.begin === e.end ? '' : `<span>${range(e)}</span>`}${l == null ? '' : `<span class="risk" data-l="${l}">${LVWORD[l]}</span>`}</span>
+      </button></li>`; }).join('');
+    if (events.length > FIRST) {
+      const more = $('moreShows'); more.hidden = false; more.textContent = `공연 ${events.length - FIRST}건 더 보기`;
+      more.onclick = () => { list.querySelectorAll('li[hidden]').forEach(li => li.hidden = false); more.hidden = true; };
+    }
     list.addEventListener('click', ev => {
       const btn = ev.target.closest('button'); if (!btn) return;
       const e = events[+btn.dataset.i];
