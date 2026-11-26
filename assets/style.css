@@ -78,6 +78,16 @@ a { color: var(--accent); text-underline-offset: 3px; }
 }
 :root[data-theme="dark"] .theme::after { transform: translateX(22px); background: #c7d2fe; box-shadow: inset -6px -2px 0 0 #1e293b; }
 .theme:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+/* 구획 바로 가기 */
+.top:has(.jump) { flex-wrap: wrap; row-gap: 8px; }
+.jump { flex: 0 0 100%; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px 2px; }
+.jump::-webkit-scrollbar { display: none; }
+.jump a { flex: none; padding: 5px 12px; border-radius: 999px; font-size: 13.5px; font-weight: 700; line-height: 1.5; color: var(--ink-soft); text-decoration: none; border: 1px solid var(--line); background: var(--surface); }
+.jump a:hover { color: var(--ink); border-color: var(--ink); }
+.jump a[aria-current] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.jump a[hidden] { display: none; }
+.dash > section, .dash > .hero { scroll-margin-top: 104px; }
+.hero p a { color: inherit; font-weight: 700; }
 
 /* 맨 위 판: 지금 상태. 판의 색이 곧 혼잡 단계다. */
 .hero {
@@ -121,6 +131,10 @@ a { color: var(--accent); text-underline-offset: 3px; }
 .facts.light { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 16px; }
 .facts.light div { background: var(--surface-2); }
 .facts.light dt, .facts.light dd small { color: var(--ink-soft); }
+.facts.light.three { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 18px; }
+.facts.light.three:empty { display: none; }
+.facts.light [data-l] dd { color: var(--c); }
+.facts.light [data-l] dd small { color: var(--ink-soft); }
 
 /* 나갈 때 */
 .exit { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr); background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 18px; }
@@ -212,6 +226,15 @@ h2 { margin: 0 0 2px; font-size: 22px; font-weight: 800; letter-spacing: -.035em
 .dates button u { display: block; margin: 6px auto 0; width: max-content; max-width: 100%; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 800; line-height: 1.5; text-decoration: none; background: var(--c); color: #fff; }
 .dates button u:empty { visibility: hidden; }
 :root[data-theme="dark"] .dates button u { color: #0b0f16; }
+.datecol { min-width: 0; }
+.datecol .note { display: none; }
+.rng { display: none; }
+.dates button em s { text-decoration: none; }
+.dates button em q { display: none; quotes: none; }
+.daypanel h3 { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.daypanel h3 button { all: unset; box-sizing: border-box; cursor: pointer; flex: none; padding: 3px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 700; background: color-mix(in srgb, currentColor 16%, transparent); }
+.daypanel h3 button:hover { background: color-mix(in srgb, currentColor 28%, transparent); }
+.daypanel h3 button:focus-visible { outline: 3px solid currentColor; outline-offset: 2px; }
 .dates button em { display: block; font-style: normal; font-size: 11px; font-weight: 700; line-height: 1; height: 11px; margin-top: 6px; color: var(--ink-soft); }
 .dates button em:not(:empty)::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 4px; vertical-align: 1px; }
 .dates button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
@@ -430,16 +453,37 @@ td.wrapcell { white-space: normal; min-width: 180px; }
   .verdict { font-size: 44px; }
   .band { height: 260px; gap: 3px; }
   .band.small { height: 200px; }
-  .daypanel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); column-gap: 20px; align-content: start; }
-  .daypanel > * { margin-left: 28px; margin-right: 28px; grid-column: 2; }
-  .daypanel > h3 { grid-column: 1 / -1; margin-left: 0; margin-right: 0; padding: 12px 28px; font-size: 15px; margin-bottom: 24px; }
-  .daypanel > .advice { grid-column: 1; grid-row: 2 / span 8; margin-right: 0; margin-bottom: 28px; }
-  .daypanel > .advice:last-child, .daypanel > .advice:nth-last-child(2) { grid-column: 1 / -1; margin-right: 28px; }
-  .daypanel > .advice + .band { margin-top: 0; }
+  .jump { margin: 0; padding: 0 0 2px; }
+  .dash > section, .dash > .hero { scroll-margin-top: 118px; }
+  #todaysec, #alt { align-self: stretch; display: flex; flex-direction: column; }
+  #todaysec .card { flex: 1; display: flex; flex-direction: column; }
+  #todaysec .band { flex: 1 1 260px; height: auto; min-height: 260px; }
+  #alt .alts { flex: 1; }
+  .planrow { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+  .datecol { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 10px; position: sticky; top: 112px; }
+  .datecol .note { display: block; margin: 10px 10px 6px; font-size: 13px; }
+  .dates { display: grid; gap: 2px; padding: 0; overflow: visible; }
+  .dates button, .dates button[data-l] {
+    display: grid; grid-template-columns: 54px minmax(0, 1fr) minmax(80px, 116px) 70px; align-items: center; column-gap: 12px;
+    padding: 8px 12px; border: 0; border-radius: 12px; background: none; text-align: left;
+  }
+  .dates button:hover { background: var(--surface-2); }
+  .dates button[aria-pressed="true"] { background: var(--ink); }
+  .dates button span { grid-area: 1 / 1; justify-self: end; font-size: 13.5px; }
+  .dates button b { grid-area: 1 / 1; justify-self: start; font-size: 22px; }
+  .dates button em { grid-area: 1 / 2; height: auto; margin: 0; font-size: 13.5px; font-weight: 600; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dates button em s { display: none; }
+  .dates button em q { display: inline; }
+  .dates button u { grid-area: 1 / 4; margin: 0; justify-self: end; font-size: 12px; }
+  .rng { grid-area: 1 / 3; display: block; position: relative; height: 10px; border-radius: 999px; background: var(--surface-2); }
+  .rng.none { visibility: hidden; }
+  .rng::before { content: ""; position: absolute; top: 0; bottom: 0; left: calc(var(--a) * 1%); width: max(10px, calc((var(--b) - var(--a)) * 1%)); border-radius: 999px; background: var(--c); }
+  .rng::after { content: ""; position: absolute; left: 58.8%; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--full); }
+  .dates button[aria-pressed="true"] .rng { background: color-mix(in srgb, var(--surface) 22%, transparent); }
+  .daypanel > * { margin-left: 28px; margin-right: 28px; }
+  .daypanel > h3 { margin-left: 0; margin-right: 0; padding: 12px 28px; font-size: 15px; margin-bottom: 24px; }
   .daypanel > :last-child { margin-bottom: 28px; }
-  .advice strong { font-size: 36px; }
-  .dates button { flex-basis: 0; }
-  .dates button b { font-size: 26px; }
+  .advice strong { font-size: 34px; }
   .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .cell .v { font-size: 26px; }
   .two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }

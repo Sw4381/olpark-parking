@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script>try{var t=localStorage.getItem('op-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t}catch(e){}</script>
-<link rel="stylesheet" href="assets/style.css?v=14">
+<link rel="stylesheet" href="assets/style.css?v=15">
 </head>
 <body>
 <div class="wrap">
@@ -16,6 +16,7 @@
     <a class="brand" href="./"><span class="logo" aria-hidden="true">P</span>올팍 주차예보</a>
     <nav class="seg" aria-label="화면 전환"><a href="./" aria-current="page">방문객</a><a href="ops.html">운영자</a></nav>
     <button class="theme" id="theme" type="button" aria-label="밝은 화면과 어두운 화면 전환"></button>
+    <nav class="jump" id="jump" aria-label="구획 바로 가기"><a href="#hero">지금</a><a href="#todaysec">오늘 하루</a><a href="#plan">날짜별 예보</a><a href="#exitsec">나갈 때</a><a href="#alt">자리가 없다면</a><a href="#weeksec">요일별</a><a href="#showsec">공연</a></nav>
   </header>
 
   <main class="dash">
@@ -41,6 +42,7 @@
       <h2 data-i="clock">오늘 하루</h2>
       <p class="sub" id="bandSub">막대가 높을수록 붐빕니다. 06시부터 24시까지 한 칸이 30분입니다.</p>
       <div class="card">
+        <dl class="facts light three" id="todayFacts"></dl>
         <div class="band" id="band"></div>
         <div class="hours" aria-hidden="true"><span>06시</span><span>09시</span><span>12시</span><span>15시</span><span>18시</span><span>21시</span></div>
         <p class="readout" aria-live="polite"></p>
@@ -58,8 +60,13 @@
     <section id="plan">
       <h2 data-i="cal">언제 오시나요</h2>
       <p class="sub">앞으로 2주의 예보입니다. 날짜를 고르면 그날 주차장이 언제쯤 차는지 알려 드립니다.</p>
-      <div class="dates" id="dates" role="group" aria-label="방문 날짜"></div>
-      <div class="daypanel" id="day" aria-live="polite"></div>
+      <div class="planrow">
+        <div class="datecol">
+          <div class="dates" id="dates" role="group" aria-label="방문 날짜"></div>
+          <p class="note" id="datesNote">막대는 2025년에 같은 조건이던 날의 절반이 든 범위입니다(가장 붐빌 때의 이용률). 빨간 금이 만차 수준 90%입니다.</p>
+        </div>
+        <div class="daypanel" id="day" aria-live="polite"></div>
+      </div>
     </section>
 
     <section id="exitsec" hidden>
@@ -122,7 +129,7 @@
   </footer>
 </div>
 
-<script src="assets/common.js?v=14"></script>
+<script src="assets/common.js?v=15"></script>
 <script>
 (async () => {
   const $ = id => document.getElementById(id);
@@ -139,6 +146,8 @@
   $('lot').innerHTML = Array.from({ length: STALLS }, (_, i) => `<i style="--n:${i}"${i >= CAPFROM ? ' class="cap"' : ''}></i>`).join('');
   const paintLot = n => { const on = Math.min(STALLS, Math.round(n / 20)); [...$('lot').children].forEach((el, i) => el.classList.toggle('on', i < on)); };
   const todayShows = onDate(now.date);
+  const actual = OP.daySlots(log, now.date);
+  const hm2 = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   const fcBase = days[now.date];
   let fcToday = fcBase;
   const paint = live => {
@@ -167,17 +176,29 @@
       facts.push(`<div><dt>만차 예상</dt><dd>${lv === 3 ? '지금' : nc.cross ? nc.cross.t : '없음'}<small>${lv === 3 || nc.cross ? '수용의 90% 이상' : '자리 남음'}</small></dd></div>`);
     }
     $('facts').innerHTML = facts.join('');
+    // 오늘 하루 요약: 지금, 오늘 가장 붐빈 때, 같은 조건 평균과의 차이
+    const tf = [`<div data-l="${lv}"><dt>지금</dt><dd>${pct}%<small>${OP.LEVELS[lv]}</small></dd></div>`];
+    let pk = pct, pkAt = '방금';
+    actual.forEach((v, i) => { if (v != null && v > pk) { pk = v; pkAt = hm2(360 + i * 30) + '쯤'; } });
+    tf.push(`<div data-l="${OP.level(pk)}"><dt>오늘 최고</dt><dd>${pk}%<small>${pkAt}</small></dd></div>`);
+    const usual = fcBase && fcBase.slots.find(s => s.t === hm2(Math.floor(t.min / 30) * 30));
+    if (usual) {
+      const d = pct - usual.pct;
+      tf.push(`<div><dt>평소 대비</dt><dd>${Math.abs(d) < 3 ? '비슷' : (d > 0 ? '+' : '−') + Math.abs(d) + '%p'}<small>이 시각 평균 ${usual.pct}%</small></dd></div>`);
+    }
+    $('todayFacts').innerHTML = tf.join('');
     $('stamp').textContent = `${live.live ? t.hm + '에' : live.at} 확인한 값입니다.`
       + (off ? ` 실시간 표시값 ${live.v.toLocaleString()}대에서 출차 기록이 없는 차량 추정분 ${off.toLocaleString()}대를 뺐습니다.` : '');
     return t;
   };
   paint(await OP.loadLive(log));
-  $('today').textContent = todayShows.length
-    ? `오늘 공연: ${todayShows.map(e => `${e.venue} ${e.title}`).join(', ')}`
-    : (events.length ? '오늘은 등록된 공연이 없습니다.' : '');
+  const nextBigDay = Object.keys(days).sort().find(d => d > now.date && days[d].big);
+  $('today').innerHTML = (todayShows.length
+    ? `오늘 공연: ${todayShows.map(e => OP.esc(`${e.venue} ${e.title}`)).join(', ')}`
+    : (events.length ? '오늘은 등록된 공연이 없습니다.' : ''))
+    + (!todayShows.length && nextBigDay ? ` 다음 대형 공연일은 ${OP.shortDate(nextBigDay)}입니다. <a href="#plan" id="nextBig">그날 예보 보기</a>` : '');
 
   // 오늘 하루 그래프
-  const actual = OP.daySlots(log, now.date);
   const showMins = todayShows.flatMap(e => OP.showTimes(e.time_text));
   const drawBand = t => OP.renderBand($('band'), { actual, forecast: OP.forecastSlots(fcToday), nowMin: t.min, showMins: todayShows.length === 1 ? showMins : [] });
   drawBand(now);
@@ -248,12 +269,20 @@
   const lvOf = d => { const a = days[d] && days[d].advice; return !a ? null : a.full_from ? 3 : a.full_days / a.n_days >= 0.1 ? 2 : 0; };
   const LVWORD = { 3: '만차 잦음', 2: '가끔 참', 0: '여유' };
   const dayLevel = d => { const l = lvOf(d); return l == null ? '' : `data-l="${l}"`; };
+  // 범위 막대: 이용률 40~125%를 0~100%에 놓는다(만차 수준 90%는 58.8% 지점. style.css의 금과 같다).
+  const sc = v => Math.max(0, Math.min(100, (v - 40) / 85 * 100)).toFixed(1);
+  const rngOf = d => { const r = days[d] && days[d].advice && days[d].advice.peak_range_pct; return r ? `<i class="rng" style="--a:${sc(r[0])};--b:${sc(r[1])}"></i>` : '<i class="rng none"></i>'; };
+  // 대형 공연장을 앞에 두고 한 곳만 적는다(나머지는 "외 N곳").
+  const venuesOn = d => {
+    const v = [...new Set(onDate(d).sort((x, y) => (['01', '02', '03'].includes(y.venue_code) ? 1 : 0) - (['01', '02', '03'].includes(x.venue_code) ? 1 : 0)).map(e => e.venue))];
+    return v[0] + (v.length > 1 ? ` 외 ${v.length - 1}곳` : '');
+  };
   const renderDay = () => {
     $('dates').innerHTML = strip.map(d => `<button type="button" aria-pressed="${d === picked}" data-d="${d}" ${dayLevel(d)} class="${dowOf(d) % 6 ? '' : 'we'}" aria-label="${OP.shortDate(d)}${lvOf(d) == null ? '' : ', ' + LVWORD[lvOf(d)]}">
-      <span>${d === now.date ? '오늘' : DOWS[dowOf(d)]}</span><b>${+d.slice(8, 10)}</b><u>${lvOf(d) == null ? '' : LVWORD[lvOf(d)]}</u><em>${onDate(d).length ? '공연' : ''}</em></button>`).join('');
+      <span>${d === now.date ? '오늘' : DOWS[dowOf(d)]}</span><b>${+d.slice(8, 10)}</b><u>${lvOf(d) == null ? '' : LVWORD[lvOf(d)]}</u>${rngOf(d)}<em>${onDate(d).length ? `<s>공연</s><q>${OP.esc(venuesOn(d))}</q>` : ''}</em></button>`).join('');
     if (lvOf(picked) == null) delete $('day').dataset.l; else $('day').dataset.l = lvOf(picked);
     const shows = onDate(picked);
-    $('day').innerHTML = `<h3>${OP.shortDate(picked)}</h3>` + adviceHTML(picked)
+    $('day').innerHTML = `<h3>${OP.shortDate(picked)}<button type="button" id="share">이 날짜 링크 복사</button></h3>` + adviceHTML(picked)
       + (shows.length ? `<ul class="dayshows">${shows.map(e => `<li><b>${OP.esc(e.venue)}</b> ${OP.esc(e.title)}<small>${OP.esc(e.time_text)}</small></li>`).join('')}</ul>`
         : '<p class="note">이 날 등록된 공연은 없습니다.</p>');
     const b = $('day').querySelector('[data-band]');
@@ -262,11 +291,20 @@
     if (on) $('dates').scrollLeft = on.offsetLeft - $('dates').offsetLeft - $('dates').clientWidth / 2 + on.clientWidth / 2;
   };
   renderDay();
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const goto = el => el.scrollIntoView({ behavior: calm ? 'auto' : 'smooth' });
   $('dates').addEventListener('click', ev => {
     const b = ev.target.closest('button'); if (!b) return;
     picked = b.dataset.d; renderDay();
-    try { history.replaceState(null, '', '#' + picked); } catch {}
+    try { window.history.replaceState(null, '', '#' + picked); } catch {}
   });
+  $('day').addEventListener('click', async ev => {
+    const b = ev.target.closest('#share'); if (!b) return;
+    const url = location.origin + location.pathname + '#' + picked;
+    try { await navigator.clipboard.writeText(url); b.textContent = '링크를 복사했습니다'; }
+    catch { try { window.history.replaceState(null, '', '#' + picked); } catch {} b.textContent = '주소창의 주소를 복사해 주세요'; }
+  });
+  if ($('nextBig')) $('nextBig').addEventListener('click', ev => { ev.preventDefault(); picked = nextBigDay; renderDay(); goto($('plan')); });
 
   // 나갈 때: 2025년 대형 공연일의 출차 기록
   if (exitStats && exitStats.groups && exitStats.shape) {
@@ -361,7 +399,7 @@
       picked = e.begin < now.date ? now.date : e.begin;
       if (!strip.includes(picked)) { strip.push(picked); strip.sort(); }
       renderDay();
-      $('plan').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      goto($('plan'));
     });
   }
 
@@ -381,6 +419,21 @@
 
   const a = forecast && forecast.accuracy;
   if (a && a.text) $('acc').textContent = a.text;
+
+  // 구획 바로 가기: 지금 보고 있는 구획을 표시한다. 주소의 날짜(#2026-11-28)는 건드리지 않는다.
+  const links = [...$('jump').querySelectorAll('a')], secs = links.map(l => $(l.getAttribute('href').slice(1)));
+  links.forEach((l, i) => { if (!secs[i] || secs[i].hidden) l.hidden = true; });
+  $('jump').addEventListener('click', ev => { const l = ev.target.closest('a'); if (!l) return; ev.preventDefault(); goto(secs[links.indexOf(l)]); });
+  let tick = false;
+  const spy = () => {
+    tick = false;
+    let best = 0, top = -Infinity; const y = innerHeight * 0.4;
+    secs.forEach((s, i) => { if (!s || s.hidden) return; const v = s.getBoundingClientRect().top; if (v <= y && v > top) { top = v; best = i; } });
+    if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) best = links.length - 1;
+    links.forEach((l, i) => { if (i === best) { if (!l.hasAttribute('aria-current')) { l.setAttribute('aria-current', 'true'); $('jump').scrollLeft = l.offsetLeft - $('jump').clientWidth / 2 + l.clientWidth / 2; } } else l.removeAttribute('aria-current'); });
+  };
+  addEventListener('scroll', () => { if (!tick) { tick = true; requestAnimationFrame(spy); } }, { passive: true });
+  spy();
 })();
 </script>
 </body>
