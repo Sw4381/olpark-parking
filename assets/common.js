@@ -48,6 +48,19 @@ const OP = (() => {
     .map(r => ({ at: r.collected_at_kst, t: kstDate(r.collected_at_kst), v: +r.parking_sum }))
     .filter(r => Number.isFinite(r.v) && !isNaN(r.t));
 
+  // 최근 약 10분의 대수 변화(10분당 대수). 수집 기록이 25분 넘게 비었으면 null.
+  const recentRate = log => {
+    const b = log[log.length - 1];
+    if (!b || Date.now() - b.t > 25 * 60000) return null;
+    for (let i = log.length - 2; i >= 0; i--) {
+      const dt = (b.t - log[i].t) / 60000;
+      if (dt >= 8) return dt <= 22 ? Math.round((b.v - log[i].v) / dt * 10) : null;
+    }
+    return null;
+  };
+  // "22:30" -> "밤 10시 30분", "02:40" -> "새벽 2시 40분"
+  const nightText = hm => { const [h, m] = hm.split(':').map(Number); return (h < 6 ? `새벽 ${h}시` : h >= 18 ? `밤 ${h - 12}시` : `${h}시`) + (m ? ` ${m}분` : ''); };
+
   // 지금 값: 기관 API를 직접 부르고, 막히면 수집 기록의 마지막 값을 쓴다.
   const loadLive = async log => {
     try {
@@ -193,5 +206,5 @@ const OP = (() => {
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   return { CAPACITY, FULL, setOffset, offset, core, nowcast, LEVELS, level, pctOf, kstParts, kstDate, shortDate, addDays, hmText, hmToMin, getJSON, getCSV,
-    loadLog, loadLive, countTo, renderHeat, daySlots, forecastSlots, renderBand, showTimes, esc };
+    loadLog, loadLive, recentRate, nightText, countTo, renderHeat, daySlots, forecastSlots, renderBand, showTimes, esc };
 })();

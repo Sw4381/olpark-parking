@@ -1,0 +1,135 @@
+{
+ "built": "2026-11-26 13:03",
+ "source": "2025 입출차정보(동2·남2·북2문 입차분), 대관정보",
+ "days": 328,
+ "days_big": 143,
+ "surge_threshold": 192,
+ "base_peak": 159,
+ "groups": {
+  "0": {
+   "n_big": 47,
+   "n_surge": 24,
+   "start_p25": "22:00",
+   "start_p50": "22:20",
+   "start_p75": "22:40",
+   "peak10_med": 246,
+   "peak30_med": 693,
+   "dur_med": 45,
+   "cars_med": 1010,
+   "half_med": 30
+  },
+  "5": {
+   "n_big": 45,
+   "n_surge": 39,
+   "start_p25": "20:40",
+   "start_p50": "20:50",
+   "start_p75": "21:20",
+   "peak10_med": 246,
+   "peak30_med": 680,
+   "dur_med": 40,
+   "cars_med": 972,
+   "half_med": 30
+  },
+  "6": {
+   "n_big": 51,
+   "n_surge": 43,
+   "start_p25": "19:40",
+   "start_p50": "20:20",
+   "start_p75": "20:40",
+   "peak10_med": 240,
+   "peak30_med": 650,
+   "dur_med": 40,
+   "cars_med": 934,
+   "half_med": 30
+  }
+ },
+ "all": {
+  "n_surge": 106,
+  "peak10_med": 245,
+  "peak10_max": 316,
+  "dur_med": 40,
+  "dur_p75": 60,
+  "cars_med": 957,
+  "half_med": 30,
+  "net_med": 208
+ },
+ "gates": {
+  "동2문": {
+   "share_surge": 0.343,
+   "max10": 90,
+   "last_p25": "02:30",
+   "last_p50": "02:40",
+   "last_p75": "02:50",
+   "before_23_share": 0.0,
+   "recent_days": 90
+  },
+  "남2문": {
+   "share_surge": 0.319,
+   "max10": 103,
+   "last_p25": "22:20",
+   "last_p50": "22:30",
+   "last_p75": "23:30",
+   "before_23_share": 0.6,
+   "recent_days": 90
+  },
+  "북2문": {
+   "share_surge": 0.338,
+   "max10": 91,
+   "last_p25": "01:52",
+   "last_p50": "02:30",
+   "last_p75": "02:50",
+   "before_23_share": 0.0,
+   "recent_days": 90
+  }
+ },
+ "gates_recent_period": "2025-09~11",
+ "shape": {
+  "offsets_min": [
+   -60,
+   -50,
+   -40,
+   -30,
+   -20,
+   -10,
+   0,
+   10,
+   20,
+   30,
+   40,
+   50,
+   60,
+   70,
+   80,
+   90,
+   100,
+   110,
+   120
+  ],
+  "mean": [
+   72,
+   80,
+   95,
+   117,
+   161,
+   208,
+   244,
+   206,
+   159,
+   116,
+   91,
+   73,
+   55,
+   44,
+   38,
+   29,
+   29,
+   26,
+   19
+  ],
+  "n": 105
+ },
+ "live": {
+  "busy": 101,
+  "surge": 174
+ }
+}

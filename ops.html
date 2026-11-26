@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script>try{var t=localStorage.getItem('op-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t}catch(e){}</script>
-<link rel="stylesheet" href="assets/style.css?v=13">
+<link rel="stylesheet" href="assets/style.css?v=14">
 </head>
 <body>
 <div class="wrap">
@@ -60,6 +60,12 @@
     </div>
     </div>
 
+    <section id="exitsec" hidden>
+      <h2>출차 전망</h2>
+      <p class="sub" id="exitSub"></p>
+      <dl class="health six" id="exitCells"></dl>
+    </section>
+
     <section>
       <h2>이번 주 대비</h2>
       <p class="sub">앞으로 7일의 예보입니다. 2025년에 요일과 대형 공연 유무가 같았던 날들의 기록입니다.</p>
@@ -98,13 +104,13 @@
   </footer>
 </div>
 
-<script src="assets/common.js?v=13"></script>
+<script src="assets/common.js?v=14"></script>
 <script>
 (async () => {
   const $ = id => document.getElementById(id);
   const now = OP.kstParts();
-  const [log, eventsFile, forecast, nearby, model] = await Promise.all([
-    OP.loadLog(), OP.getJSON('data/events.json'), OP.getJSON('data/forecast.json'), OP.getJSON('data/nearby.json'), OP.getJSON('data/model.json')]);
+  const [log, eventsFile, forecast, nearby, model, exitStats] = await Promise.all([
+    OP.loadLog(), OP.getJSON('data/events.json'), OP.getJSON('data/forecast.json'), OP.getJSON('data/nearby.json'), OP.getJSON('data/model.json'), OP.getJSON('data/exit_stats.json')]);
   const liveOff = forecast && forecast.live_offset;
   OP.setOffset(liveOff && liveOff.value);
   const live = await OP.loadLive(log);
@@ -221,6 +227,28 @@
     }
   }
   $('todo').innerHTML = todo.map(([c, t, d]) => `<li class="${c}"><b>${t}</b><p>${d}</p></li>`).join('');
+
+  // 출차 전망: 2025년 대형 공연일의 출차 기록과 지금의 감소 폭
+  if (exitStats && exitStats.groups) {
+    const X = exitStats, KDN = { 0: '평일', 5: '토요일', 6: '일요일·공휴일' };
+    const k0 = fday ? +fday.key.split('|')[0] : null, kd = k0 == null ? null : k0 <= 4 ? '0' : String(k0);
+    const g = kd && X.groups[kd], bigToday = fday && fday.big, rate = OP.recentRate(log);
+    const xs = [];
+    const rl = rate == null ? null : -rate >= X.live.surge ? 'alert' : -rate >= X.live.busy ? 'warn' : 'ok';
+    xs.push(['지금 출차', rate == null ? '기록 부족' : rl === 'alert' ? '몰림' : rl === 'warn' ? '많음' : '원활', rl || '', rate == null ? '' : `최근 10분 ${signed(rate)}`]);
+    if (g) {
+      xs.push(['오늘 출차 몰림', bigToday ? `${g.start_p25}~${g.start_p75}` : '예상 없음', bigToday ? 'warn' : 'ok',
+        bigToday ? `가장 몰리는 30분의 시작. ${KDN[kd]} 대형 공연일 ${g.n_big}일 중 ${g.n_surge}일에 몰림` : '오늘은 대형 공연장 공연이 없습니다']);
+      xs.push([`${KDN[kd]} 공연일, 몰릴 때 10분 출차`, `${g.peak10_med}대`, '', `약 ${g.dur_med}분 이어짐. 기록 최대 ${X.all.peak10_max}대`]);
+    }
+    for (const [name, v] of Object.entries(X.gates)) {
+      const early = v.before_23_share >= 0.5;
+      xs.push([`${name} 10분 최대 출차`, `${v.max10}대`, early ? 'warn' : '', `마지막 출차 ${OP.nightText(v.last_p50)}${early ? '쯤' : ''}(중앙값)`]);
+    }
+    $('exitsec').hidden = false;
+    $('exitSub').textContent = `2025년 대형 공연장 공연이 있던 ${X.days_big}일의 출차 기록입니다. 공연 없는 날 저녁의 10분 최대는 ${X.base_peak}대입니다. 출구 대기 시간은 자료에 없어 출차 대수로만 봅니다.`;
+    $('exitCells').innerHTML = xs.map(([k, v, c, d]) => `<div class="${c}"><dt>${k}</dt><dd>${v}<small>${d}</small></dd></div>`).join('');
+  }
 
   // 이번 주 대비
   const lvOf = a => (a.full_from ? 3 : a.full_days / a.n_days >= 0.1 ? 2 : 0), LVWORD = { 3: '만차 잦음', 2: '가끔 참', 0: '여유' };

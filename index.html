@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script>try{var t=localStorage.getItem('op-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t}catch(e){}</script>
-<link rel="stylesheet" href="assets/style.css?v=13">
+<link rel="stylesheet" href="assets/style.css?v=14">
 </head>
 <body>
 <div class="wrap">
@@ -62,6 +62,29 @@
       <div class="daypanel" id="day" aria-live="polite"></div>
     </section>
 
+    <section id="exitsec" hidden>
+      <h2>나갈 때</h2>
+      <p class="sub" id="exitSub"></p>
+      <div class="exit">
+        <div class="exit-head">
+          <p class="exit-live" id="exitLive" hidden></p>
+          <strong id="exitTitle"></strong>
+          <p id="exitLead"></p>
+          <div class="xtabs" id="exitTabs" role="group" aria-label="공연일 종류"></div>
+          <dl class="facts light" id="exitFacts"></dl>
+        </div>
+        <div class="exit-chart">
+          <h3>공연 뒤 10분마다 나가는 차</h3>
+          <div class="xbars" id="exitBars"></div>
+          <div class="xaxis" aria-hidden="true"><span>1시간 전</span><span>가장 몰릴 때</span><span>1시간 뒤</span><span>2시간 뒤</span></div>
+          <p class="readout" id="exitOut" aria-live="polite"></p>
+          <ul class="legend"><li><b style="background:var(--ink)"></b>공연 없는 날의 저녁 최대보다 많은 때</li><li><b class="dash"></b><span id="exitBase"></span></li></ul>
+        </div>
+        <ul class="gates" id="exitGates"></ul>
+        <p class="note" id="exitNote"></p>
+      </div>
+    </section>
+
     <section id="alt">
       <h2 data-i="route">자리가 없다면</h2>
       <p class="sub" id="altSub">공원 주차장이 찼을 때 갈 수 있는 곳입니다.</p>
@@ -99,12 +122,12 @@
   </footer>
 </div>
 
-<script src="assets/common.js?v=13"></script>
+<script src="assets/common.js?v=14"></script>
 <script>
 (async () => {
   const $ = id => document.getElementById(id);
   const now = OP.kstParts();
-  const [log, eventsFile, forecast, history, nearby, model] = await Promise.all([OP.loadLog(), OP.getJSON('data/events.json'), OP.getJSON('data/forecast.json'), OP.getJSON('data/history_stats.json'), OP.getJSON('data/nearby.json'), OP.getJSON('data/model.json')]);
+  const [log, eventsFile, forecast, history, nearby, model, exitStats] = await Promise.all([OP.loadLog(), OP.getJSON('data/events.json'), OP.getJSON('data/forecast.json'), OP.getJSON('data/history_stats.json'), OP.getJSON('data/nearby.json'), OP.getJSON('data/model.json'), OP.getJSON('data/exit_stats.json')]);
   OP.setOffset(forecast && forecast.live_offset && forecast.live_offset.value);
   const events = (eventsFile && eventsFile.events) || [];
   const days = (forecast && forecast.days) || {};
@@ -244,6 +267,57 @@
     picked = b.dataset.d; renderDay();
     try { history.replaceState(null, '', '#' + picked); } catch {}
   });
+
+  // 나갈 때: 2025년 대형 공연일의 출차 기록
+  if (exitStats && exitStats.groups && exitStats.shape) {
+    const X = exitStats, KDN = { 0: '평일', 5: '토요일', 6: '일요일·공휴일' };
+    const kdOf = d => { const k = +days[d].key.split('|')[0]; return k <= 4 ? '0' : String(k); };
+    const nextBig = Object.keys(days).sort().find(d => d >= now.date && days[d].big);
+    let xk = nextBig && X.groups[kdOf(nextBig)] ? kdOf(nextBig) : Object.keys(X.groups)[0];
+    const sh = X.shape, at = m => sh.mean[sh.offsets_min.indexOf(m)], mx = Math.max(...sh.mean);
+    $('exitsec').hidden = false;
+    $('exitSub').textContent = `2025년 대형 공연장 공연이 있던 ${X.days_big}일의 출차 기록입니다. 그중 ${X.all.n_surge}일은 공연이 끝난 뒤 출차가 한꺼번에 몰렸습니다.`;
+    const half = Math.round(at(30) / at(0) * 100), quarter = Math.round(at(60) / at(0) * 100);
+    $('exitTitle').textContent = half >= 40 && half <= 60 ? '가장 몰리는 때를 30분만 비켜 가면 나가는 차가 절반으로 줄어듭니다' : `가장 몰리는 때에서 30분이 지나면 나가는 차가 ${half}%로 줄어듭니다`;
+    $('exitLead').textContent = `가장 몰리는 10분에 평균 ${at(0)}대가 나가고, 30분 뒤에는 ${at(30)}대, 1시간 뒤에는 ${at(60)}대(${quarter}%)로 줄어듭니다.`
+      + (nextBig ? ` 다음 대형 공연일은 ${nextBig === now.date ? '오늘' : OP.shortDate(nextBig)}입니다.` : '');
+    // 지금: 10분 간격 수집 기록의 감소 폭으로 가늠한다
+    const rate = OP.recentRate(log);
+    if (rate != null) {
+      const l = -rate >= X.live.surge ? 3 : -rate >= X.live.busy ? 2 : 0;
+      $('exitLive').hidden = false;
+      $('exitLive').innerHTML = `<span class="pill" data-l="${l}">${l === 3 ? '지금 출차 몰림' : l === 2 ? '지금 출차 많음' : '지금 출차 원활'}</span>`
+        + (rate < 0 ? `최근 10분에 주차 대수가 ${(-rate).toLocaleString()}대 줄었습니다.${l === 3 ? ' 공연 없는 날에는 거의 없는 수준입니다.' : ''}` : '지금은 나가는 차보다 들어오는 차가 많습니다.');
+    }
+    const drawExit = () => {
+      const g = X.groups[xk];
+      $('exitTabs').innerHTML = Object.keys(X.groups).map(k => `<button type="button" data-k="${k}" aria-pressed="${k === xk}">${KDN[k]} 공연</button>`).join('');
+      const f = (k, v, s) => `<div><dt>${k}</dt><dd>${v}<small>${s}</small></dd></div>`;
+      $('exitFacts').innerHTML = f('가장 몰리는 30분', `${g.start_p50}부터`, `날의 절반은 ${g.start_p25}~${g.start_p75} 시작`)
+        + f('몰림이 이어진 시간', `약 ${g.dur_med}분`, `그동안 약 ${(Math.round(g.cars_med / 10) * 10).toLocaleString()}대 출차`);
+    };
+    drawExit();
+    $('exitTabs').addEventListener('click', ev => { const b = ev.target.closest('button'); if (b) { xk = b.dataset.k; drawExit(); } });
+    const offText = m => m === 0 ? '가장 몰릴 때' : `${Math.abs(m)}분 ${m < 0 ? '전' : '뒤'}`;
+    $('exitBars').style.setProperty('--base', (X.base_peak / mx * 100).toFixed(1) + '%');
+    $('exitBars').setAttribute('role', 'img');
+    $('exitBars').setAttribute('aria-label', `출차가 가장 몰릴 때를 기준으로 한 10분 출차 대수. 가장 몰릴 때 ${at(0)}대, 30분 뒤 ${at(30)}대, 1시간 뒤 ${at(60)}대.`);
+    $('exitBars').innerHTML = sh.mean.map((v, i) => `<i data-i="${i}" class="${v >= X.base_peak ? 'hot' : ''}" style="--h:${(v / mx * 100).toFixed(1)}"></i>`).join('');
+    const pickBar = el => {
+      const i = +el.dataset.i;
+      $('exitBars').querySelectorAll('.sel').forEach(x => x.classList.remove('sel')); el.classList.add('sel');
+      $('exitOut').textContent = `${offText(sh.offsets_min[i])}: 10분에 평균 ${sh.mean[i]}대 출차` + (sh.offsets_min[i] === 0 ? '' : ` (가장 몰릴 때의 ${Math.round(sh.mean[i] / at(0) * 100)}%)`);
+    };
+    $('exitBars').addEventListener('click', ev => { const el = ev.target.closest('i'); if (el) pickBar(el); });
+    $('exitBars').addEventListener('pointermove', ev => { const el = ev.target.closest('i'); if (el && ev.pointerType === 'mouse') pickBar(el); });
+    $('exitBase').textContent = `점선은 공연 없는 날 저녁의 최대(10분에 ${X.base_peak}대)`;
+    const p = X.gates_recent_period, period = `${p.slice(0, 4)}년 ${+p.slice(5, 7)}~${+p.slice(8)}월`;
+    $('exitGates').innerHTML = Object.entries(X.gates).map(([name, v]) => {
+      const early = v.before_23_share >= 0.5, cut = Math.round(v.before_23_share * v.recent_days);
+      return `<li class="${early ? 'warn' : ''}"><b>${OP.esc(name)}</b><span>${OP.nightText(v.last_p50)}${early ? '쯤까지' : '까지'}</span>
+        <p>${early ? `${period} ${v.recent_days}일 중 ${cut}일은 밤 11시 전에 출차 기록이 끊겼습니다. 늦게 나간다면 다른 출입구로 가세요.` : `밤늦게도 출차 기록이 이어집니다. 몰릴 때 나간 차의 ${Math.round(v.share_surge * 100)}%가 이 문으로 나갔습니다.`}</p></li>`; }).join('');
+    $('exitNote').textContent = `출구에서 기다린 시간은 개방 데이터에 없어 나간 차량 수로만 안내합니다. 출입구별 시각은 ${period} 출차 기록의 마지막 시각(중앙값)이며, 실제 운영 시간은 현장 안내를 따라 주세요.`;
+  }
 
   // 자리가 없다면: 늦게 차는 구역, 인근 공영주차장, 대중교통
   const alts = [];
