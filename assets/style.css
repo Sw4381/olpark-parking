@@ -264,6 +264,42 @@ footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line);
 footer p { margin: 0 0 8px; max-width: 80ch; }
 
 /* 운영자 화면 */
+.hero.ops .hero-num b { font-size: clamp(64px, 19vw, 96px); letter-spacing: -.05em; }
+.hero.ops .hero-num span { font-size: clamp(22px, 6vw, 32px); margin-left: 4px; }
+.hero.ops .lotbox { margin-top: 6px; }
+.hero.ops .hero-now { grid-template-columns: minmax(0, 1fr); }
+.hero.ops .hero-side { padding-bottom: 0; margin-top: 12px; }
+.ahead { list-style: none; margin: 0; padding: 6px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; }
+.ahead li { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto 44px; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.ahead li:last-child { border-bottom: 0; }
+.ahead li.none { display: block; color: var(--ink-soft); font-size: 14.5px; }
+.ahead li > span { font-weight: 700; color: var(--ink-soft); font-size: 14px; }
+.ahead .meter { margin: 0; height: 10px; }
+.ahead .meter span[data-l="1"] { --c: var(--mild); }
+.ahead b { font-weight: 800; }
+.ahead em { font-style: normal; font-weight: 800; text-align: right; color: var(--ink-soft); }
+.ahead li[data-l="2"] em, .ahead li[data-l="3"] em { color: var(--c); }
+.todo { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.todo li { --c: var(--line); position: relative; padding: 14px 16px 14px 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.todo li::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 6px; background: var(--c); }
+.todo li.ok { --c: var(--free); } .todo li.warn { --c: var(--mild); } .todo li.alert { --c: var(--full); background: color-mix(in srgb, var(--full) 9%, var(--surface)); }
+.todo b { display: block; font-weight: 800; line-height: 1.4; }
+.todo p { margin: 4px 0 0; font-size: 14px; color: var(--ink-soft); }
+.pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 800; background: var(--c); color: #fff; }
+:root[data-theme="dark"] .pill { color: #0b0f16; }
+.health { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 0; background: var(--line); border: 1px solid var(--line); border-radius: 20px; overflow: hidden; }
+.health div { --c: var(--line); background: var(--surface); padding: 14px 16px; }
+.health div.ok { --c: var(--free); } .health div.warn { --c: var(--mild); } .health div.alert { --c: var(--full); }
+.health dt { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+.health dt::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--c); flex: none; }
+.health dd { margin: 4px 0 0; font-size: 18px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.health dd small { display: block; font-size: 12.5px; font-weight: 500; letter-spacing: 0; color: var(--ink-soft); }
+.chart .c-area { fill: color-mix(in srgb, var(--ink) 9%, transparent); }
+.chart .c-now { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 3 4; }
+.chart .c-nowtxt { fill: var(--ink); font-weight: 800; }
+.chart .c-peak { fill: var(--accent); font-weight: 800; }
+.chart .c-hair { stroke: var(--ink-soft); stroke-width: 1; }
+#chartOut:empty::before { content: "그래프 위를 가리키면 그 시각의 값이 보입니다"; }
 .grid { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 10px; }
 .cell { --c: var(--line); position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px 14px 20px; min-width: 0; overflow: hidden; }
 .cell::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 6px; background: var(--c); }
@@ -310,6 +346,7 @@ td.wrapcell { white-space: normal; min-width: 180px; }
 /* 넓은 화면 */
 @media (min-width: 700px) {
   .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .health { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .stats div:first-child:nth-last-child(odd) { grid-column: auto; }
   .shows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 36px; }
@@ -347,7 +384,10 @@ td.wrapcell { white-space: normal; min-width: 180px; }
   .hero-num b { font-size: 150px; }
   .hero-num span { font-size: 52px; }
   .hero-side strong { font-size: 20px; }
-  .hero.ops { grid-template-columns: minmax(0, 1fr); padding: 30px 36px; }
+  .hero.ops .hero-num b { font-size: 112px; }
+  .hero.ops .verdict { font-size: 36px; }
+  .opsrow { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); gap: 0 28px; align-items: start; }
+  .opsside section:first-child { margin-top: 36px; }
   .verdict { font-size: 44px; }
   .band { height: 260px; gap: 3px; }
   .band.small { height: 200px; }
@@ -365,6 +405,7 @@ td.wrapcell { white-space: normal; min-width: 180px; }
   .cell .v { font-size: 26px; }
   .two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
   .valviz { grid-template-columns: 1fr 1fr; }
+  .health { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .heat i { height: 30px; }
   .stats div { padding: 24px; }
 }
