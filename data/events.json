@@ -145,8 +145,8 @@
    "venue_code": "03",
    "venue": "티켓링크 라이브 아레나",
    "begin": "2026-12-25",
-   "end": "2026-12-26",
-   "time_text": "금 18시 30분 / 토 18시",
+   "end": "2026-12-27",
+   "time_text": "금 18시 30분 / 토 18시 / 일 17시",
    "duration_text": "120분",
    "url": "https://www.ksponco.or.kr/olympicpark/eventInfo/eventInfoView.es?mid=a20301010100&evtSeq=5182"
   },
@@ -250,5 +250,5 @@
    "url": "https://www.ksponco.or.kr/olympicpark/eventInfo/eventInfoView.es?mid=a20301010100&evtSeq=5187"
   }
  ],
- "fetched_at_kst": "2026-11-25 17:53:59"
+ "fetched_at_kst": "2026-11-27 10:50:09"
 }
